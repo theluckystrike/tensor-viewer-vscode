@@ -3,11 +3,11 @@
 [![VS Code Marketplace installs](https://img.shields.io/visual-studio-marketplace/i/zovo.tensor-viewer?label=VS%20Code%20installs)](https://marketplace.visualstudio.com/items?itemName=zovo.tensor-viewer)
 [![Open VSX version](https://img.shields.io/open-vsx/v/zovo/tensor-viewer?label=Open%20VSX)](https://open-vsx.org/extension/zovo/tensor-viewer)
 
-Click a `.gguf`, `.safetensors`, `.npy` or `.npz` file and see every tensor's name, dtype and shape, plus stats and a heatmap, without Python and without loading the whole file.
+For people who run or fine-tune local models, Tensor Viewer opens `.gguf`, `.safetensors`, `.npy` and `.npz` files in VS Code and shows every tensor's name, dtype and shape, plus stats and a heatmap, without Python.
 
-![A llama-style GGUF model in Tensor Viewer. The header shows 4.00M parameters, architecture llama, context length 2048 and 6.96 bits per weight. The tensor table lists Q8_0, Q4_0, Q4_1 and F32 tensors, and blk.2.attn_q.weight is open with its stats and a blue and red heatmap](https://github.com/theluckystrike/tensor-viewer-vscode/raw/HEAD/images/gguf.png)
+![A llama-style GGUF model in VS Code. The header shows 4.00M parameters, architecture llama and context length 2048. The tensor table lists Q8_0, Q4_0 and F32 tensors, and blk.2.attn_q.weight is open with its stats and a blue and red heatmap](https://raw.githubusercontent.com/theluckystrike/tensor-viewer-vscode/main/images/vscode-gguf.png)
 
-*Real output. The file is a 3.35 MB llama-style GGUF written by gguf-py from `scripts/make-fixtures.py`. The extension's own webview bundle rendered it in headless Chrome, fed with messages from the extension's GGUF reader. The header took 121 ms to read and the tensor 21 ms.*
+*A real VS Code 1.142 window running this extension on [`test/fixtures/tiny-llama-q8.gguf`](https://github.com/theluckystrike/tensor-viewer-vscode/blob/main/test/fixtures/tiny-llama-q8.gguf), a 3.35 MB llama-style GGUF written by gguf-py from `scripts/make-fixtures.py`.*
 
 - It opens big checkpoints in well under a second. Only the header is read at first. When you click a tensor, Tensor Viewer reads that tensor's bytes by offset, and a huge one is sampled by whole rows spread across it. Our test opens a 10.7 GB safetensors file in under 1 s.
 - It reads the formats local LLM users actually have. GGUF metadata (architecture, context length, file type, tokenizer, chat template) sits next to the quant type of each tensor. Q8_0, Q4_0, Q4_1, Q5_0, Q5_1, Q4_K, Q5_K and Q6_K weights are decoded for stats and heatmaps.
@@ -17,6 +17,10 @@ Click a `.gguf`, `.safetensors`, `.npy` or `.npz` file and see every tensor's na
 
 1. Install Tensor Viewer.
 2. Click any `.gguf`, `.safetensors`, `.npy` or `.npz` file in the Explorer. Then click a tensor in the table.
+
+![A click on the GGUF file opens its header and tensor table. Typing attn_q filters the table, and clicks on blk.0.attn_q.weight and blk.2.attn_q.weight show their stats and heatmaps](https://raw.githubusercontent.com/theluckystrike/tensor-viewer-vscode/main/images/demo-tensor.gif)
+
+*Recorded in the same window. The white arrow is drawn in to show where each click lands.*
 
 Run "Tensor Viewer: Get Started" from the Command Palette for a short tour.
 
