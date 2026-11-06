@@ -9,4 +9,5 @@ dist/*.vsix
 *.vsix
 images/gguf-metadata.png
 .github/**
-images/**
+images/vscode-*
+images/demo-*
