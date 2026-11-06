@@ -1,0 +1,169 @@
+{
+  "name": "tensor-viewer",
+  "displayName": "Tensor Viewer",
+  "description": "View NPY, NPZ, Safetensors and GGUF files: shapes, dtypes, stats and heatmaps. Offline.",
+  "version": "0.1.0",
+  "publisher": "zovo",
+  "license": "MIT",
+  "icon": "icon.png",
+  "galleryBanner": {
+    "color": "#0B1B33",
+    "theme": "dark"
+  },
+  "engines": {
+    "vscode": "^1.90.0",
+    "node": ">=18"
+  },
+  "categories": [
+    "Data Science",
+    "Machine Learning",
+    "Visualization"
+  ],
+  "keywords": [
+    "npy",
+    "npz",
+    "numpy",
+    "safetensors",
+    "gguf",
+    "ggml",
+    "tensor",
+    "tensors",
+    "viewer",
+    "preview",
+    "inspector",
+    "llm",
+    "llama",
+    "llama.cpp",
+    "ollama",
+    "huggingface",
+    "model weights",
+    "checkpoint",
+    "quantization",
+    "machine learning",
+    "deep learning",
+    "pytorch",
+    "array",
+    "ndarray",
+    "heatmap",
+    "dtype",
+    "shape",
+    "metadata",
+    "data science",
+    "offline"
+  ],
+  "main": "./dist/extension.js",
+  "activationEvents": [],
+  "capabilities": {
+    "untrustedWorkspaces": {
+      "supported": true
+    },
+    "virtualWorkspaces": true
+  },
+  "contributes": {
+    "customEditors": [
+      {
+        "viewType": "tensorViewer.view",
+        "displayName": "Tensor Viewer",
+        "selector": [
+          {
+            "filenamePattern": "*.npy"
+          },
+          {
+            "filenamePattern": "*.npz"
+          },
+          {
+            "filenamePattern": "*.safetensors"
+          },
+          {
+            "filenamePattern": "*.gguf"
+          }
+        ],
+        "priority": "default"
+      }
+    ],
+    "commands": [
+      {
+        "command": "tensorViewer.openWalkthrough",
+        "title": "Get Started",
+        "category": "Tensor Viewer"
+      }
+    ],
+    "configuration": {
+      "title": "Tensor Viewer",
+      "properties": {
+        "tensorViewer.sampleValues": {
+          "type": "number",
+          "default": 2000000,
+          "minimum": 10000,
+          "maximum": 50000000,
+          "description": "Most values read from one tensor for stats, the histogram and the heatmap. Larger tensors are sampled by whole rows spread evenly over the tensor."
+        },
+        "tensorViewer.maxRemoteFileMB": {
+          "type": "number",
+          "default": 512,
+          "minimum": 1,
+          "description": "Files that are not on local disk (remote or virtual workspaces) are read whole. Bigger files show a message instead."
+        }
+      }
+    },
+    "walkthroughs": [
+      {
+        "id": "tensorViewer.start",
+        "title": "Get started with Tensor Viewer",
+        "description": "Open NumPy, Safetensors and GGUF files and see what is inside.",
+        "steps": [
+          {
+            "id": "open",
+            "title": "Open a tensor file",
+            "description": "Click any .npy, .npz, .safetensors or .gguf file in the Explorer. It opens in Tensor Viewer with the header read and every tensor listed.\n[Find a model file](command:workbench.action.quickOpen?%5B%22.safetensors%22%5D)",
+            "media": {
+              "image": "images/gguf.png",
+              "altText": "A GGUF model open in Tensor Viewer with its metadata, tensor table and a heatmap."
+            },
+            "completionEvents": [
+              "onCommand:workbench.action.quickOpen"
+            ]
+          },
+          {
+            "id": "inspect",
+            "title": "Inspect one tensor",
+            "description": "Click a row to see min, max, mean, std, NaN and Inf counts, a histogram, and a heatmap, line plot or image. Use the buttons to copy the shape as a Python tuple or torch.Size.",
+            "media": {
+              "markdown": "walkthrough/inspect.md"
+            }
+          },
+          {
+            "id": "settings",
+            "title": "Tune the sample size",
+            "description": "Big tensors are sampled by whole rows. Raise the sample size for exact stats on larger tensors.\n[Open settings](command:workbench.action.openSettings?%5B%22tensorViewer%22%5D)",
+            "media": {
+              "markdown": "walkthrough/settings.md"
+            },
+            "completionEvents": [
+              "onCommand:workbench.action.openSettings"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "scripts": {
+    "build": "node scripts/build.js --production",
+    "test": "node scripts/build.js --production && node --test \"test/*.test.js\"",
+    "fixtures": "python3 scripts/make-fixtures.py test/fixtures",
+    "package": "npm run build && npx -y @vscode/vsce package --no-dependencies -o dist/"
+  },
+  "devDependencies": {
+    "@huggingface/gguf": "0.4.6",
+    "esbuild": "0.28.2",
+    "fflate": "0.8.3"
+  },
+  "homepage": "https://github.com/theluckystrike/tensor-viewer-vscode#readme",
+  "bugs": {
+    "url": "https://github.com/theluckystrike/tensor-viewer-vscode/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/theluckystrike/tensor-viewer-vscode"
+  }
+}

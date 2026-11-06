@@ -1,0 +1,403 @@
+{
+ "arange_2x3_f4.npy": {
+  "shape": [
+   2,
+   3
+  ],
+  "descr": "<f4",
+  "values": [
+   0.0,
+   1.0,
+   2.0,
+   3.0,
+   4.0,
+   5.0
+  ],
+  "stats": {
+   "count": 6,
+   "nan": 0,
+   "posinf": 0,
+   "neginf": 0,
+   "min": 0.0,
+   "max": 5.0,
+   "mean": 2.5,
+   "std": 1.707825127659933
+  }
+ },
+ "bigendian_i4.npy": {
+  "shape": [
+   5
+  ],
+  "descr": ">i4",
+  "values": [
+   1,
+   -2,
+   300000,
+   -4,
+   5
+  ],
+  "stats": {
+   "count": 5,
+   "nan": 0,
+   "posinf": 0,
+   "neginf": 0,
+   "min": -4.0,
+   "max": 300000.0,
+   "mean": 60000.0,
+   "std": 120000.00003833334
+  }
+ },
+ "fortran_3x4_f8.npy": {
+  "shape": [
+   3,
+   4
+  ],
+  "descr": "<f8",
+  "fortran": true,
+  "values": [
+   0.0,
+   1.0,
+   2.0,
+   3.0,
+   4.0,
+   5.0,
+   6.0,
+   7.0,
+   8.0,
+   9.0,
+   10.0,
+   11.0
+  ],
+  "stats": {
+   "count": 12,
+   "nan": 0,
+   "posinf": 0,
+   "neginf": 0,
+   "min": 0.0,
+   "max": 11.0,
+   "mean": 5.5,
+   "std": 3.452052529534663
+  }
+ },
+ "specials_f2.npy": {
+  "shape": [
+   8
+  ],
+  "descr": "<f2",
+  "values": [
+   0.5,
+   -1.25,
+   null,
+   "inf",
+   "-inf",
+   65504.0,
+   5.960464477539063e-08,
+   0.0
+  ],
+  "stats": {
+   "count": 8,
+   "nan": 1,
+   "posinf": 1,
+   "neginf": 1,
+   "min": -1.25,
+   "max": 65504.0,
+   "mean": 13100.650000011921,
+   "std": 26201.675006374837
+  }
+ },
+ "int64_2x2.npy": {
+  "shape": [
+   2,
+   2
+  ],
+  "descr": "<i8",
+  "values": [
+   -1099511627776,
+   7,
+   1099511627776,
+   -7
+  ],
+  "stats": {
+   "count": 4,
+   "nan": 0,
+   "posinf": 0,
+   "neginf": 0,
+   "min": -1099511627776.0,
+   "max": 1099511627776.0,
+   "mean": 0.0,
+   "std": 777472127993.8688
+  }
+ },
+ "bool_4.npy": {
+  "shape": [
+   4
+  ],
+  "descr": "|b1",
+  "values": [
+   1,
+   0,
+   1,
+   1
+  ],
+  "stats": {
+   "count": 4,
+   "nan": 0,
+   "posinf": 0,
+   "neginf": 0,
+   "min": 0.0,
+   "max": 1.0,
+   "mean": 0.75,
+   "std": 0.4330127018922193
+  }
+ },
+ "complex_3_c8.npy": {
+  "shape": [
+   3
+  ],
+  "descr": "<c8",
+  "values": [
+   5.0,
+   1.0,
+   10.0
+  ],
+  "stats": {
+   "count": 3,
+   "nan": 0,
+   "posinf": 0,
+   "neginf": 0,
+   "min": 1.0,
+   "max": 10.0,
+   "mean": 5.333333333333333,
+   "std": 3.6817870057290873
+  }
+ },
+ "strings_U5.npy": {
+  "shape": [
+   3
+  ],
+  "descr": "<U5"
+ },
+ "object_pickle.npy": {
+  "shape": [
+   3
+  ],
+  "descr": "|O"
+ },
+ "structured.npy": {
+  "shape": [
+   3
+  ]
+ },
+ "scalar_f4.npy": {
+  "shape": [],
+  "descr": "<f4",
+  "values": [
+   3.5
+  ],
+  "stats": {
+   "count": 1,
+   "nan": 0,
+   "posinf": 0,
+   "neginf": 0,
+   "min": 3.5,
+   "max": 3.5,
+   "mean": 3.5,
+   "std": 0.0
+  }
+ },
+ "v2_header.npy": {
+  "shape": [
+   7
+  ],
+  "descr": "<f4",
+  "values": [
+   -1.0,
+   -0.6666666865348816,
+   -0.3333333432674408,
+   0.0,
+   0.3333333432674408,
+   0.6666666865348816,
+   1.0
+  ],
+  "stats": {
+   "count": 7,
+   "nan": 0,
+   "posinf": 0,
+   "neginf": 0,
+   "min": -1.0,
+   "max": 1.0,
+   "mean": 0.0,
+   "std": 0.6666666737624578
+  }
+ },
+ "signal_5000_f4.npy": {
+  "shape": [
+   5000
+  ],
+  "descr": "<f4",
+  "stats": {
+   "count": 5000,
+   "nan": 0,
+   "posinf": 0,
+   "neginf": 0,
+   "min": -1.0782768726348877,
+   "max": 1.1230924129486084,
+   "mean": 0.026797598018159625,
+   "std": 0.4330488372569781
+  }
+ },
+ "image_96x128x3_u1.npy": {
+  "shape": [
+   96,
+   128,
+   3
+  ],
+  "descr": "|u1",
+  "first_pixel": [
+   0,
+   0,
+   0
+  ],
+  "last_pixel": [
+   255,
+   255,
+   0
+  ],
+  "stats": {
+   "count": 36864,
+   "nan": 0,
+   "posinf": 0,
+   "neginf": 0,
+   "min": 0.0,
+   "max": 255.0,
+   "mean": 118.01302083333333,
+   "std": 84.61944428611685
+  }
+ },
+ "matrix_1024x512_f4.npy": {
+  "shape": [
+   1024,
+   512
+  ],
+  "descr": "<f4",
+  "stats": {
+   "count": 524288,
+   "nan": 0,
+   "posinf": 0,
+   "neginf": 0,
+   "min": -4.928238391876221,
+   "max": 5.007235050201416,
+   "mean": -0.000435218445642622,
+   "std": 1.0005744937412595
+  },
+  "row_1000_first": -0.33918604254722595
+ },
+ "bundle_stored.npz": {
+  "names": [
+   "weights",
+   "labels",
+   "image",
+   "words"
+  ]
+ },
+ "bundle_compressed.npz": {
+  "names": [
+   "weights",
+   "signal",
+   "matrix"
+  ],
+  "signal_stats": {
+   "count": 5000,
+   "nan": 0,
+   "posinf": 0,
+   "neginf": 0,
+   "min": -1.0782768726348877,
+   "max": 1.1230924129486084,
+   "mean": 0.026797598018159625,
+   "std": 0.4330488372569781
+  },
+  "matrix_stats": {
+   "count": 131072,
+   "nan": 0,
+   "posinf": 0,
+   "neginf": 0,
+   "min": -4.815640926361084,
+   "max": 5.007235050201416,
+   "mean": -0.00233830077376021,
+   "std": 1.003716710937587
+  }
+ },
+ "gpt2_tiny.safetensors": {
+  "names": [
+   "wpe.weight",
+   "wte.weight",
+   "h.0.ln_1.weight",
+   "h.0.ln_1.bias",
+   "h.0.attn.c_attn.weight",
+   "h.0.attn.bias",
+   "h.0.mlp.c_fc.weight",
+   "step",
+   "mask"
+  ],
+  "params": 850436,
+  "wpe_stats": {
+   "count": 131072,
+   "nan": 0,
+   "posinf": 0,
+   "neginf": 0,
+   "min": -1.0,
+   "max": 1.0,
+   "mean": 0.2662889947643779,
+   "std": 0.655049747183238
+  },
+  "metadata": {
+   "format": "pt",
+   "source": "make-fixtures.py"
+  }
+ },
+ "bf16_f8.safetensors": {
+  "bf16": [
+   1.0,
+   -2.5,
+   3.140625,
+   0.0,
+   0.00099945068359375,
+   -65280.0
+  ],
+  "f8a": [
+   1.0,
+   -1.0,
+   2.0,
+   448.0,
+   0.0,
+   0.001953125
+  ],
+  "f8b": [
+   1.0,
+   -1.0,
+   57344.0,
+   "inf",
+   "nan",
+   1.52587890625e-05
+  ]
+ },
+ "quant_types.gguf": {
+  "names": [
+   "f32",
+   "f16",
+   "q8_0",
+   "q4_0",
+   "q4_1",
+   "q5_0",
+   "q5_1",
+   "bf16",
+   "q4_k",
+   "q5_k",
+   "q6_k",
+   "i32"
+  ],
+  "context_length": 4096,
+  "tokens": 300,
+  "architecture": "llama"
+ }
+}
