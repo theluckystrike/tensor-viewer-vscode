@@ -6,6 +6,9 @@ const { FileSource, BufferSource } = require('./core/source');
 const { openTensorFile } = require('./core/formats');
 const { sampleTensor } = require('./core/sample');
 const { validateWebviewMessage, publicModel, shapeText } = require('./core/protocol');
+const { createRatingPrompt } = require('./rate');
+
+let rating = { success() {} };
 
 const VIEW_TYPE = 'tensorViewer.view';
 
@@ -45,6 +48,7 @@ class TensorEditorProvider {
     let disposed = false;
     let source = null;
     let seq = 0; // newest select wins; older samples are dropped
+    let counted = false; // one success per opened tab, for the rating prompt
     const post = m => { if (!disposed) panel.webview.postMessage(m); };
     const t0 = Date.now();
     const modelP = (async () => {
@@ -60,7 +64,11 @@ class TensorEditorProvider {
       const v = validateWebviewMessage(raw, model.tensors.length);
       if (!v.ok) return;
       const msg = v.msg;
-      if (msg.type === 'ready') { post({ ...publicModel(model, name), openMs: Date.now() - t0 }); return; }
+      if (msg.type === 'ready') {
+        post({ ...publicModel(model, name), openMs: Date.now() - t0 });
+        if (!counted) { counted = true; rating.success(); }
+        return;
+      }
       if (msg.type === 'select') {
         const my = ++seq;
         try {
@@ -82,6 +90,7 @@ class TensorEditorProvider {
 }
 
 function activate(context) {
+  rating = createRatingPrompt({ vscode, context, extensionId: 'zovo.tensor-viewer', section: 'tensorViewer', message: (n) => `Tensor Viewer has opened ${n} files for you. A rating helps other people find it.` });
   context.subscriptions.push(
     vscode.window.registerCustomEditorProvider(VIEW_TYPE, new TensorEditorProvider(context), {
       supportsMultipleEditorsPerDocument: true,

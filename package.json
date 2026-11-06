@@ -2,7 +2,7 @@
   "name": "tensor-viewer",
   "displayName": "GGUF, Safetensors & NPY Tensor Viewer",
   "description": "View GGUF, Safetensors and NPY/NPZ files in VS Code with every tensor's name, shape and dtype, plus stats and heatmaps, without Python and offline.",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "publisher": "zovo",
   "license": "MIT",
   "icon": "icon.png",
@@ -103,6 +103,11 @@
           "default": 512,
           "minimum": 1,
           "description": "Files that are not on local disk (remote or virtual workspaces) are read whole. Bigger files show a message instead."
+        },
+        "tensorViewer.askForRating": {
+          "type": "boolean",
+          "default": true,
+          "description": "Ask one time for a Marketplace rating after you have used Tensor Viewer for a few days. You can answer \"Later\" or \"Don't ask again\". Nothing is sent anywhere."
         }
       }
     },
