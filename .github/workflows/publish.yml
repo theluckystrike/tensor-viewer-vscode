@@ -1,0 +1,100 @@
+# Publish to the VS Code Marketplace with trusted publishing (GitHub OIDC, no PAT).
+# The Marketplace policy on publisher "zovo" names this repository and the file name "publish.yml".
+# Renaming this file or the repository breaks publishing until the policy is updated.
+#
+# Triggers (never on a normal push):
+#   - push of a tag v*            -> publishes that tag
+#   - workflow_dispatch (manual)  -> publishes the selected ref, or the release given in "tag"
+# Source of the .vsix:
+#   - if the GitHub release for the tag has a .vsix asset, that exact file is published
+#   - otherwise the extension is tested and packaged from the checked-out source
+# Path filters do not apply to tag pushes, so this workflow has no "paths:" block on purpose.
+name: Publish to Marketplace
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag whose .vsix asset to publish (empty = build from the selected ref)'
+        required: false
+        default: ''
+
+permissions:
+  contents: read
+
+concurrency:
+  group: marketplace-publish-${{ github.repository }}
+  cancel-in-progress: true
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      TAG: ${{ github.event_name == 'push' && github.ref_name || inputs.tag }}
+      GH_TOKEN: ${{ github.token }}
+      VSCE: '@vscode/vsce@4.1.0'
+      PUBLISHER: zovo
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Use the .vsix attached to the release, if any
+        id: src
+        run: |
+          mkdir -p out
+          if [ -n "$TAG" ] && gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --pattern '*.vsix' --dir out; then
+            echo "from=release" >> "$GITHUB_OUTPUT"
+          else
+            rm -f out/*.vsix
+            echo "from=build" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Install
+        if: steps.src.outputs.from == 'build'
+        run: npm ci
+
+      - name: Test
+        if: steps.src.outputs.from == 'build'
+        run: npm test
+
+      - name: Package
+        if: steps.src.outputs.from == 'build'
+        run: npx -y "$VSCE" package --no-dependencies -o out/
+
+      - name: Check publisher, name and version
+        run: |
+          set -e
+          ls -la out
+          [ "$(ls out/*.vsix | wc -l)" = 1 ] || { echo "Expected exactly one .vsix in out/"; exit 1; }
+          VSIX=$(ls out/*.vsix)
+          unzip -p "$VSIX" extension/package.json > "$RUNNER_TEMP/vsix-package.json"
+          node -e '
+            const v = require(process.argv[1]), src = require(process.argv[2]);
+            const tag = process.env.TAG || "";
+            const fail = (m) => { console.error(m); process.exit(1); };
+            if (v.publisher !== process.env.PUBLISHER) fail(`publisher ${v.publisher} is not ${process.env.PUBLISHER}`);
+            if (v.name !== src.name) fail(`vsix name ${v.name} does not match package.json name ${src.name}`);
+            if (tag && tag !== "v" + v.version) fail(`tag ${tag} does not match vsix version ${v.version}`);
+            console.log(`OK ${v.publisher}.${v.name} ${v.version}`);
+          ' "$RUNNER_TEMP/vsix-package.json" "$GITHUB_WORKSPACE/package.json"
+          echo "VSIX=$VSIX" >> "$GITHUB_ENV"
+
+      - name: Publish with trusted publishing (OIDC)
+        run: npx -y "$VSCE" publish --oidc --packagePath "$VSIX" --skip-duplicate
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vsix
+          path: out/*.vsix
+          retention-days: 7
