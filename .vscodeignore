@@ -8,3 +8,4 @@ icon.svg
 dist/*.vsix
 *.vsix
 images/gguf-metadata.png
+.github/**

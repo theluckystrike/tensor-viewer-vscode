@@ -104,3 +104,33 @@ test('an unreadable tensor returns a sampleError, not a crash', async () => {
   assert.match(e.message, /pickle/);
   f.dispose();
 });
+
+// ---------- support links (Sponsor, More free viewers) ----------
+test('support: package.json has the sponsor field, the two commands and the setting', () => {
+  const pkg = require('../package.json');
+  const support = require('../src/support');
+  assert.strictEqual(pkg.sponsor.url, 'https://github.com/sponsors/theluckystrike');
+  assert.strictEqual(pkg.sponsor.url, support.sponsorUrl());
+  const ids = pkg.contributes.commands.map(c => c.command);
+  assert.ok(ids.includes('tensorViewer.supportDeveloper') && ids.includes('tensorViewer.moreViewers'));
+  const cfg = Array.isArray(pkg.contributes.configuration) ? pkg.contributes.configuration : [pkg.contributes.configuration];
+  const props = Object.assign({}, ...cfg.map(c => c.properties));
+  assert.strictEqual(props['tensorViewer.showSupportLinks'].default, true);
+  assert.ok(support.otherProducts('zovo.tensor-viewer').every(p => p.id !== 'zovo.tensor-viewer'));
+});
+
+test('support: the footer shows by default and tensorViewer.showSupportLinks=false hides it', async () => {
+  const provider = registered.editors[0].provider;
+  const orig = vscodeMock.workspace.getConfiguration;
+  try {
+    for (const [settings, shown] of [[{}, true], [{ showSupportLinks: false }, false]]) {
+      vscodeMock.workspace.getConfiguration = () => ({ get: (k, d) => (k in settings ? settings[k] : d) });
+      const f = fakePanel();
+      await provider.resolveCustomEditor(provider.openCustomDocument(vscodeMock.Uri.file(path.join(FIX, 'tiny-llama-q8.gguf'))), f.panel);
+      assert.strictEqual(/id="zovo-support"/.test(f.panel.webview.html), shown, JSON.stringify(settings));
+      assert.strictEqual(f.panel.webview.html.includes('command:tensorViewer.supportDeveloper'), shown);
+      assert.deepStrictEqual(f.panel.webview.options.enableCommandUris, ['tensorViewer.supportDeveloper', 'tensorViewer.moreViewers', 'workbench.action.openSettings']);
+      f.dispose();
+    }
+  } finally { vscodeMock.workspace.getConfiguration = orig; }
+});
