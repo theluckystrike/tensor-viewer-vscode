@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.1 (2026-11-07)
+
+- The Marketplace name is now "GGUF, Safetensors & NPY Viewer (NumPy Viewer)", so a search for NumPy viewer finds it. The extension ID, settings and commands stay the same, and "tensor viewer" stays in the tags.
+
 ## 0.2.0 (2026-11-06)
 
 - New Values table under the heatmap. It shows the numbers of any tensor, 32 rows at a time, read by offset so big files stay fast. Page with the arrow buttons or type a row or column number. Pick Auto, Exact, 2, 4 or 8 decimals, or Scientific. Hover a cell for its index and exact value. "Copy values" copies the page as tab-separated text.

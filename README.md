@@ -1,9 +1,9 @@
-# GGUF, Safetensors & NPY Tensor Viewer
+# GGUF, Safetensors & NPY Viewer (NumPy Viewer)
 
 [![VS Code Marketplace installs](https://img.shields.io/visual-studio-marketplace/i/zovo.tensor-viewer?label=VS%20Code%20installs)](https://marketplace.visualstudio.com/items?itemName=zovo.tensor-viewer)
 [![Open VSX version](https://img.shields.io/open-vsx/v/zovo/tensor-viewer?label=Open%20VSX)](https://open-vsx.org/extension/zovo/tensor-viewer)
 
-For people who run or fine-tune local models, Tensor Viewer opens `.gguf`, `.safetensors`, `.npy` and `.npz` files in VS Code and shows every tensor's name, dtype and shape, plus stats and a heatmap, without Python.
+For people who run or fine-tune local models, Tensor Viewer opens `.gguf` and `.safetensors` files in VS Code, works as a NumPy viewer for `.npy` and `.npz`, and shows every tensor's name, dtype and shape, plus stats and a heatmap, without Python.
 
 ![A llama-style GGUF model in VS Code. The header shows 4.00M parameters, architecture llama and context length 2048. The tensor table lists Q8_0, Q4_0 and F32 tensors, and blk.2.attn_q.weight is open with its stats and a blue and red heatmap](https://raw.githubusercontent.com/theluckystrike/tensor-viewer-vscode/main/images/vscode-gguf.png)
 
