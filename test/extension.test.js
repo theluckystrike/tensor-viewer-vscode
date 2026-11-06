@@ -12,7 +12,7 @@ let clipboard = '';
 const vscodeMock = {
   Uri: {
     joinPath: (u, ...p) => ({ ...u, path: path.join(u.path, ...p), fsPath: path.join(u.fsPath || u.path, ...p) }),
-    file: p => ({ scheme: 'file', path: p, fsPath: p }),
+    file: p => ({ scheme: 'file', path: p, fsPath: p, toString() { return 'file://' + this.path; } }),
   },
   window: { registerCustomEditorProvider: (id, provider) => { registered.editors.push({ id, provider }); return { dispose() {} }; } },
   commands: { registerCommand: (id, fn) => { registered.commands[id] = fn; return { dispose() {} }; }, executeCommand: async () => {} },
@@ -133,4 +133,116 @@ test('support: the footer shows by default and tensorViewer.showSupportLinks=fal
       f.dispose();
     }
   } finally { vscodeMock.workspace.getConfiguration = orig; }
+});
+
+// ---------- values table, copy values, save as .npy / CSV ----------
+const os = require('os');
+const fsx = require('fs');
+const { BufferSource } = require('../src/core/source');
+const { openTensorFile } = require('../src/core/formats');
+
+test('values: a page of a GGUF tensor, then Copy values puts tab-separated text on the clipboard', async () => {
+  const provider = registered.editors[0].provider;
+  const f = fakePanel();
+  await provider.resolveCustomEditor(provider.openCustomDocument(vscodeMock.Uri.file(path.join(FIX, 'tiny-llama-q8.gguf'))), f.panel);
+  f.send({ type: 'ready' });
+  const model = await f.until(m => m.type === 'model');
+  const i = model.tensors.findIndex(t => t.name === 'blk.0.attn_q.weight');
+  f.send({ type: 'values', index: i, slice: [], row: 3, col: 30, rows: 4, cols: 6 });
+  const v = await f.until(m => m.type === 'values');
+  assert.deepStrictEqual([v.row, v.col, v.rows, v.cols, v.totalRows, v.totalCols, v.kind], [3, 30, 4, 6, 256, 256, 'Q8_0']);
+  const b = Buffer.from(v.re, 'base64');
+  const re = new Float64Array(b.buffer.slice(b.byteOffset, b.byteOffset + b.length));
+  assert.strictEqual(re.length, 24);
+  f.send({ type: 'copyValues', index: i, slice: [], row: 3, col: 30, rows: 4, cols: 6 });
+  await f.until(m => m.type === 'copied' && m.what === 'values');
+  const lines = clipboard.split('\n');
+  assert.strictEqual(lines.length, 4);
+  assert.deepStrictEqual(lines[0].split('\t').map(x => Math.fround(Number(x))), Array.from(re.subarray(0, 6)));
+  // A page outside the slice rules gets no reply.
+  const before = f.sent.length;
+  f.send({ type: 'values', index: i, slice: [0], row: 0, col: 0, rows: 1, cols: 1 });
+  await new Promise(r => setTimeout(r, 50));
+  assert.strictEqual(f.sent.length, before);
+  f.dispose();
+});
+
+test('save: .npy and CSV go to the picked file, never over the source, and a cancel leaves no file', async () => {
+  const provider = registered.editors[0].provider;
+  const dir = fsx.mkdtempSync(path.join(os.tmpdir(), 'tensor-viewer-test-'));
+  const shown = [];
+  let pick = null, cancelNow = false;
+  Object.assign(vscodeMock.window, {
+    showSaveDialog: async o => { shown.push(o); return pick; },
+    withProgress: async (_o, task) => task({ report() {} }, { get isCancellationRequested() { return cancelNow; } }),
+    showErrorMessage: async t => { shown.push({ error: t }); },
+    showInformationMessage: async t => { shown.push({ info: t }); },
+  });
+  vscodeMock.ProgressLocation = { Notification: 15 };
+  try {
+    const src = path.join(FIX, 'tiny-llama-q8.gguf');
+    const f = fakePanel();
+    await provider.resolveCustomEditor(provider.openCustomDocument(vscodeMock.Uri.file(src)), f.panel);
+    f.send({ type: 'ready' });
+    const model = await f.until(m => m.type === 'model');
+    const i = model.tensors.findIndex(t => t.name === 'blk.1.ffn_gate.weight');
+    const next = () => { const n = f.sent.length; return f.until(m => m.type === 'exported' && f.sent.indexOf(m) >= n); };
+
+    pick = vscodeMock.Uri.file(path.join(dir, 'gate.npy'));
+    let done = next();
+    f.send({ type: 'export', index: i, format: 'npy' });
+    let r = await done;
+    assert.strictEqual(r.ok, true, r.text);
+    assert.match(r.text, /Saved gate.npy .*Q4_0 has no NumPy type, so the values are saved as float32/);
+    assert.match(shown[0].defaultUri.fsPath, /blk.1.ffn_gate.weight\.npy$/);
+    assert.deepStrictEqual(shown[0].filters, { 'NumPy array': ['npy'] });
+    const back = await openTensorFile(new BufferSource(fsx.readFileSync(pick.fsPath)), 'gate.npy');
+    assert.deepStrictEqual([back.tensors[0].dtype, back.tensors[0].shape], ['float32', [704, 256]]);
+
+    pick = vscodeMock.Uri.file(path.join(dir, 'gate.csv'));
+    done = next();
+    f.send({ type: 'export', index: i, format: 'csv' });
+    r = await done;
+    assert.strictEqual(r.ok, true, r.text);
+    assert.strictEqual(fsx.readFileSync(pick.fsPath, 'utf8').trim().split('\n').length, 704);
+
+    pick = vscodeMock.Uri.file(src); // the file being shown
+    const size = fsx.statSync(src).size;
+    done = next();
+    f.send({ type: 'export', index: i, format: 'npy' });
+    r = await done;
+    assert.strictEqual(r.ok, false);
+    assert.match(r.text, /never writes over the file it is showing/);
+    assert.strictEqual(fsx.statSync(src).size, size);
+
+    pick = null; // dialog closed
+    done = next();
+    f.send({ type: 'export', index: i, format: 'csv' });
+    assert.strictEqual((await done).text, 'Not saved.');
+
+    pick = vscodeMock.Uri.file(path.join(dir, 'cancel.npy'));
+    cancelNow = true;
+    done = next();
+    f.send({ type: 'export', index: i, format: 'npy' });
+    r = await done;
+    assert.match(r.text, /cancelled. Nothing was written/);
+    assert.deepStrictEqual(fsx.readdirSync(dir).sort(), ['gate.csv', 'gate.npy'], 'no partial file is left');
+    f.dispose();
+  } finally {
+    fsx.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('the open time is measured once, so a tab that comes back does not show a bigger number', async () => {
+  const provider = registered.editors[0].provider;
+  const f = fakePanel();
+  await provider.resolveCustomEditor(provider.openCustomDocument(vscodeMock.Uri.file(path.join(FIX, 'arange_2x3_f4.npy'))), f.panel);
+  f.send({ type: 'ready' });
+  const a = await f.until(m => m.type === 'model');
+  await new Promise(r => setTimeout(r, 60));
+  const n = f.sent.length;
+  f.send({ type: 'ready' }); // a hidden webview is rebuilt and asks again
+  const b = await f.until(m => m.type === 'model' && f.sent.indexOf(m) >= n);
+  assert.strictEqual(b.openMs, a.openMs);
+  f.dispose();
 });

@@ -1,10 +1,15 @@
 'use strict';
 // Tensor Viewer webview. All file content is put on the page with textContent or canvas pixels,
 // never as HTML, so a tensor name or metadata string cannot inject markup or script.
+const { displayText, displayComplex, exactText, complexText, PRECISIONS } = require('../core/numtext');
+
 (function () {
   const vscode = acquireVsCodeApi();
   const app = document.getElementById('app');
-  const S = { model: null, filter: '', sort: { key: null, dir: 1 }, selected: -1, limit: 500, tab: 'tensors', sample: null, sampleFor: -1, mdFilter: '', error: null };
+  const saved = vscode.getState() || {};
+  const S = { model: null, filter: '', sort: { key: null, dir: 1 }, selected: -1, limit: 500, tab: 'tensors', sample: null, sampleFor: -1, mdFilter: '', error: null,
+    slices: {}, sliceStats: false, vpage: { row: 0, col: 0 }, vals: null, valsErr: null, prec: PRECISIONS.includes(saved.prec) ? saved.prec : 'auto' };
+  const PAGE_ROWS = 32;
 
   // ---------- helpers ----------
   function el(tag, props, kids) {
@@ -116,9 +121,15 @@
       render();
       if (first >= 0) select(first);
     } else if (m.type === 'sample' || m.type === 'sampleError') {
-      if (m.index !== S.selected) return;
+      if (m.index !== S.selected || !sameSlice(m.slice || null, statsSlice())) return;
       S.sample = m; S.sampleFor = m.index;
       renderDetail();
+    } else if (m.type === 'values' || m.type === 'valuesError') {
+      if (m.index !== S.selected || !sameSlice(m.slice, curSlice()) || m.row !== S.vpage.row || m.col !== S.vpage.col) return;
+      if (m.type === 'values') { S.vals = m; S.valsErr = null; } else { S.vals = null; S.valsErr = m.message; }
+      renderValues();
+    } else if (m.type === 'exported') {
+      flash(m.text);
     } else if (m.type === 'error') {
       S.error = m.message; render();
     } else if (m.type === 'copied') {
@@ -132,14 +143,36 @@
     setTimeout(() => f.remove(), 1800);
   }
 
+  // ---------- slices ----------
+  // Tensors with 3 or more dimensions show one 2-D slice at a time in the values table: one index
+  // per leading dimension. The stats and heatmap use it too when "Use this slice" is on.
+  const leadDims = t => (t && t.shape.length >= 3 ? t.shape.slice(0, -2) : []);
+  function curSlice() {
+    const t = S.model && S.model.tensors[S.selected];
+    if (!t) return [];
+    const lead = leadDims(t);
+    const s = S.slices[S.selected];
+    return s && s.length === lead.length ? s : lead.map(() => 0);
+  }
+  const statsSlice = () => (S.sliceStats && leadDims(S.model && S.model.tensors[S.selected]).length ? curSlice() : null);
+  const sameSlice = (a, b) => (a === null || b === null ? a === b : a.length === b.length && a.every((v, k) => v === b[k]));
+  const sliceText = s => '[' + s.concat([':', ':']).join(', ') + ']';
+  function requestSample() {
+    const t = S.model.tensors[S.selected];
+    S.sample = null; S.sampleFor = -1;
+    if (!t || !t.readable) return;
+    const sl = statsSlice();
+    vscode.postMessage(sl ? { type: 'select', index: S.selected, slice: sl } : { type: 'select', index: S.selected });
+  }
+
   function select(i) {
-    S.selected = i; S.sample = null; S.sampleFor = -1;
+    S.selected = i; S.sample = null; S.sampleFor = -1; S.vpage = { row: 0, col: 0 }; S.vals = null; S.valsErr = null;
     for (const r of document.querySelectorAll('tr.sel')) r.classList.remove('sel');
     const row = document.querySelector(`tr[data-i="${i}"]`);
     if (row) { row.classList.add('sel'); row.scrollIntoView({ block: 'nearest' }); }
     const t = S.model.tensors[i];
     renderDetail();
-    if (t.readable) vscode.postMessage({ type: 'select', index: i });
+    requestSample();
   }
 
   // ---------- layout ----------
@@ -264,11 +297,129 @@
       el('div', { class: 'btns' }, [copyBtn('shape', 'Copy shape'), copyBtn('torch', 'Copy torch.Size'), copyBtn('name', 'Copy name')]),
     ];
     if (t.note) parts.push(el('p', { class: 'note', text: t.note }));
+    if (t.readable) {
+      if (leadDims(t).length) parts.push(sliceBar(t));
+      const save = fmt => el('button', { class: 'btn', id: 'save-' + fmt, text: fmt === 'npy' ? 'Save as .npy...' : 'Save as CSV...', title: (fmt === 'npy' ? 'Write this tensor to a NumPy .npy file' : 'Write the values to a CSV file, one row per line') + (statsSlice() ? ' (this slice only)' : ''),
+        onclick: () => vscode.postMessage({ type: 'export', index: S.selected, format: fmt, slice: statsSlice() }) });
+      parts.push(el('div', { class: 'btns' }, [save('npy'), save('csv')]));
+    }
     const s = S.sampleFor === S.selected ? S.sample : null;
     if (!t.readable) { /* note says why */ } else if (!s) parts.push(el('p', { class: 'loading', text: 'Reading values...' }));
     else if (s.type === 'sampleError') parts.push(el('p', { class: 'note err', text: s.message }));
     else parts.push(...sampleView(t, s.result));
+    if (t.readable) {
+      const hist = parts.findIndex(p => p && p.classList && p.classList.contains('hist-h'));
+      const vbox = el('div', { id: 'values', class: 'values' });
+      const block = [el('h3', { text: 'Values' }), vbox];
+      if (hist >= 0) parts.splice(hist, 0, ...block); else parts.push(...block);
+    }
     box.replaceChildren(...parts);
+    if (t.readable) renderValues();
+  }
+
+  function sliceBar(t) {
+    const lead = leadDims(t), cur = curSlice();
+    const inputs = lead.map((n, k) => {
+      const inp = el('input', { type: 'number', class: 'num slice-in', min: 0, max: n - 1, step: 1, value: cur[k], 'aria-label': `Index for dimension ${k} (0 to ${n - 1})`, title: `0 to ${n - 1}` });
+      const apply = () => {
+        let v = Math.round(Number(inp.value));
+        if (!Number.isFinite(v)) v = 0;
+        v = Math.max(0, Math.min(n - 1, v));
+        inp.value = v;
+        if (curSlice()[k] === v) return;
+        const next = curSlice().slice(); next[k] = v;
+        S.slices[S.selected] = next;
+        S.vpage = { row: 0, col: 0 }; S.vals = null; S.valsErr = null;
+        if (S.sliceStats) { requestSample(); renderDetail(); } else renderValues();
+      };
+      // A number field fires "change" only on blur, so Enter applies it too.
+      inp.addEventListener('change', apply);
+      inp.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); apply(); } });
+      return inp;
+    });
+    const kids = [el('span', { class: 'fl', text: 'Slice' }), '['];
+    inputs.forEach(inp => { kids.push(inp, ', '); });
+    kids.push(':, :]');
+    const box = el('input', { type: 'checkbox', id: 'slice-stats' });
+    box.checked = S.sliceStats;
+    box.addEventListener('change', () => { S.sliceStats = box.checked; requestSample(); renderDetail(); });
+    return el('div', { class: 'slicebar' }, [el('div', { class: 'slicepick' }, kids),
+      el('label', { class: 'slicestats', for: 'slice-stats' }, [box, ' Use only this slice for the stats, the heatmap and Save'])]);
+  }
+
+  // ---------- values table ----------
+  function pageCols(total) {
+    const w = (document.getElementById('detail') || {}).clientWidth || 480;
+    const per = S.prec === '8' || S.prec === 'exact' ? 112 : 88;
+    // At least 6 columns; the table scrolls sideways when the panel is narrow.
+    return Math.max(1, Math.min(total, Math.max(6, Math.min(16, Math.floor((w - 90) / per)))));
+  }
+  function requestValues() {
+    const t = S.model.tensors[S.selected];
+    const g = t.shape.length === 0 ? [1, 1] : t.shape.length === 1 ? [t.shape[0], 1] : t.shape.slice(-2);
+    vscode.postMessage({ type: 'values', index: S.selected, slice: curSlice(), row: S.vpage.row, col: S.vpage.col, rows: Math.min(PAGE_ROWS, g[0] - S.vpage.row), cols: pageCols(g[1] - S.vpage.col) });
+  }
+  function renderValues() {
+    const box = document.getElementById('values');
+    const t = S.model && S.model.tensors[S.selected];
+    if (!box || !t) return;
+    if (S.valsErr) { box.replaceChildren(el('p', { class: 'note err', text: S.valsErr })); return; }
+    const v = S.vals;
+    if (!v || v.index !== S.selected || !sameSlice(v.slice, curSlice()) || v.row !== S.vpage.row || v.col !== S.vpage.col) {
+      if (!box.firstChild) box.append(el('p', { class: 'loading', text: 'Reading values...' }));
+      requestValues();
+      return;
+    }
+    const re = f64(v.re), im = v.im ? f64(v.im) : null;
+    const go = (row, col) => {
+      S.vpage = { row: Math.max(0, Math.min(row, v.totalRows - 1)), col: Math.max(0, Math.min(col, v.totalCols - 1)) };
+      requestValues();
+    };
+    const range = (a, n, total, what) => `${what} ${nf.format(a)}-${nf.format(a + n - 1)} of ${nf.format(total)}`;
+    const jump = (label, val, max, fn) => {
+      const inp = el('input', { type: 'number', class: 'num', min: 0, max, step: 1, value: val, 'aria-label': label, title: label });
+      const apply = () => { const x = Math.round(Number(inp.value)); if (Number.isFinite(x) && x !== val) fn(Math.max(0, Math.min(max, x))); };
+      inp.addEventListener('change', apply);
+      inp.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); apply(); } });
+      return inp;
+    };
+    const nav = (txt, title, disabled, fn) => el('button', { class: 'btn nav', text: txt, title, 'aria-label': title, disabled: disabled ? '' : null, onclick: fn });
+    const prec = el('select', { class: 'prec', 'aria-label': 'Number format', title: 'Number format' }, PRECISIONS.map(p => el('option', { value: p, text: { auto: 'Auto', exact: 'Exact', 2: '2 decimals', 4: '4 decimals', 8: '8 decimals', sci: 'Scientific' }[p] })));
+    prec.value = S.prec;
+    prec.addEventListener('change', () => { S.prec = prec.value; vscode.setState({ ...(vscode.getState() || {}), prec: S.prec }); renderValues(); });
+    const bar = el('div', { class: 'vbar' }, [
+      el('span', { class: 'vgroup' }, [nav('◀', 'Previous rows', v.row === 0, () => go(v.row - PAGE_ROWS, v.col)), nav('▶', 'Next rows', v.row + v.rows >= v.totalRows, () => go(v.row + PAGE_ROWS, v.col)),
+        el('span', { class: 'vr', text: range(v.row, v.rows, v.totalRows, 'Rows') }), v.totalRows > PAGE_ROWS ? jump('Go to row', v.row, v.totalRows - 1, r => go(r, v.col)) : null]),
+      v.totalCols > 1 ? el('span', { class: 'vgroup' }, [nav('◀', 'Previous columns', v.col === 0, () => go(v.row, v.col - v.cols)), nav('▶', 'Next columns', v.col + v.cols >= v.totalCols, () => go(v.row, v.col + v.cols)),
+        el('span', { class: 'vr', text: range(v.col, v.cols, v.totalCols, 'Columns') }), v.totalCols > v.cols ? jump('Go to column', v.col, v.totalCols - 1, c => go(v.row, c)) : null]) : null,
+      el('span', { class: 'vgroup' }, [prec, el('button', { class: 'btn', id: 'copy-values', text: 'Copy values', title: 'Copy this page as tab-separated text, with every digit', onclick: () => vscode.postMessage({ type: 'copyValues', index: S.selected, slice: curSlice(), row: v.row, col: v.col, rows: v.rows, cols: v.cols }) })]),
+    ]);
+    const cell = i => (im ? displayComplex(re[i], im[i], v.kind, S.prec) : displayText(re[i], v.kind, S.prec));
+    const exact = i => (im ? complexText(re[i], im[i], v.kind) : exactText(re[i], v.kind));
+    const lead = curSlice(), nd = t.shape.length;
+    const where = (r, c) => (nd === 0 ? '[]' : nd === 1 ? `[${r}]` : '[' + lead.concat([r, c]).join(', ') + ']');
+    const head = el('tr', null, [el('th', { class: 'corner', text: nd >= 3 ? sliceText(lead) : '' })].concat(nd >= 2 ? Array.from({ length: v.cols }, (_, c) => el('th', { text: nf.format(v.col + c) })) : [el('th', { text: 'value' })]));
+    const body = [];
+    for (let r = 0; r < v.rows; r++) {
+      const tds = [el('th', { text: nf.format(v.row + r) })];
+      for (let c = 0; c < v.cols; c++) {
+        const i = r * v.cols + c, x = re[i];
+        tds.push(el('td', { class: !Number.isFinite(x) ? 'nf' : x < 0 ? 'neg' : null, text: cell(i), title: `${where(v.row + r, v.col + c)} = ${exact(i)}` }));
+      }
+      body.push(el('tr', null, tds));
+    }
+    const cap = [];
+    if (S.model.format === 'gguf' && /^Q/.test(String(v.kind))) cap.push(`${t.dtype} values after dequantizing, as llama.cpp computes them.`);
+    else if (/^(f16|bf16|f8e4m3|f8e5m2)$/.test(String(v.kind))) cap.push(`${t.dtype} values, shown as their exact float32 value.`);
+    if (v.kind === 'i64' || v.kind === 'u64') cap.push('64-bit integers above 9,007,199,254,740,991 lose their last digits here.');
+    if (nd >= 3) cap.push(`Showing slice ${sliceText(lead)}.`);
+    cap.push('Hover a cell for its exact value.');
+    box.replaceChildren(bar, el('div', { class: 'vwrap' }, [el('table', { class: 'vals' }, [el('thead', null, [head]), el('tbody', null, body)])]), el('p', { class: 'cap', text: cap.join(' ') }));
+  }
+  function f64(b64) {
+    const bin = atob(b64), u = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i);
+    return new Float64Array(u.buffer);
   }
 
   function sampleView(t, r) {
@@ -278,12 +429,13 @@
       fact('Min', num(st.min)), fact('Max', num(st.max)), fact('Mean', num(st.mean)), fact('Std', num(st.std)),
       fact('NaN', nf.format(st.nan)), fact('+Inf', nf.format(st.posinf)), fact('-Inf', nf.format(st.neginf)), fact('Zeros', nf.format(st.zeros)),
     ]));
-    out.push(el('p', { class: 'how', text: (r.exact ? 'Exact, from ' : 'Sample of ') + r.how + `. Read in ${r.ms} ms.` }));
+    const sl = statsSlice();
+    out.push(el('p', { class: 'how', text: (sl ? `Slice ${sliceText(sl)}. ` : '') + (r.exact ? 'Exact, from ' : 'Sample of ') + r.how + `. Read in ${r.ms} ms.` }));
     const width = Math.max(240, Math.min(640, (document.getElementById('detail').clientWidth || 480) - 44));
     if (r.view && r.view.kind === 'heatmap') out.push(el('h3', { text: 'Heatmap' }), heatmap(r.view, width));
     if (r.view && r.view.kind === 'line') out.push(el('h3', { text: 'Values by index' }), linePlot(r.view, width));
     if (r.view && r.view.kind === 'image') out.push(el('h3', { text: 'Image' }), imageView(r.view, width));
-    if (r.hist) out.push(el('h3', { text: 'Histogram' }), histogram(r.hist, width));
+    if (r.hist) out.push(el('h3', { class: 'hist-h', text: 'Histogram' }), histogram(r.hist, width));
     return out;
   }
 
@@ -422,6 +574,6 @@
   }
 
   let rz = 0;
-  window.addEventListener('resize', () => { clearTimeout(rz); rz = setTimeout(renderDetail, 150); });
+  window.addEventListener('resize', () => { clearTimeout(rz); rz = setTimeout(() => { S.vals = null; renderDetail(); }, 150); });
   vscode.postMessage({ type: 'ready' });
 })();

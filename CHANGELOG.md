@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.2.0 (2026-11-06)
+
+- New Values table under the heatmap. It shows the numbers of any tensor, 32 rows at a time, read by offset so big files stay fast. Page with the arrow buttons or type a row or column number. Pick Auto, Exact, 2, 4 or 8 decimals, or Scientific. Hover a cell for its index and exact value. "Copy values" copies the page as tab-separated text.
+- GGUF quant values are shown after dequantizing. float16, bfloat16 and FP8 show their exact float32 value. Complex numbers show as `3+4j`.
+- Tensors with 3 or more dimensions get a Slice field, such as `[5, :, :]`. A tick box makes the stats, the heatmap and Save use that slice too.
+- New "Save as .npy..." and "Save as CSV..." buttons write a tensor or a slice to a file you pick. Types NumPy knows are copied byte for byte, and bfloat16, FP8 and GGUF quants are written as float32. The file is written in chunks with a progress bar you can cancel. Tensor Viewer refuses to write over the file it is showing.
+- "Opened in" no longer grows when you come back to a tab that was in the background.
+
 ## 0.1.4 (2026-11-06)
 
 - The Marketplace page now starts with a screenshot of a real VS Code window with a GGUF model and a tensor heatmap, and a short GIF of filtering and opening tensors. Both were made from generated sample files. The images load from the GitHub repo and are not packed into the extension, so the download size stays the same.
