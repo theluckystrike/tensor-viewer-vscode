@@ -6,6 +6,8 @@ const PROTOCOL_VERSION = 1;
 const COPY_WHAT = new Set(['shape', 'name', 'torch']);
 const EXPORT_FORMATS = new Set(['npy', 'csv']);
 const { checkSlice, MAX_PAGE_ROWS, MAX_PAGE_COLS } = require('./values');
+const { imageInfo, RANGES } = require('./image');
+const LAYOUTS = new Set(['hwc', 'chw', 'gray']);
 const nat = (v, max) => Number.isInteger(v) && v >= 0 && v <= max;
 
 /**
@@ -17,6 +19,14 @@ function validateWebviewMessage(m, tensorCount, tensors) {
   const idx = i => Number.isInteger(i) && i >= 0 && i < tensorCount;
   switch (m.type) {
     case 'ready': return { ok: true, msg: { type: 'ready' } };
+    case 'rawLayout': return { ok: true, msg: { type: 'rawLayout' } };
+    case 'image': {
+      if (!idx(m.index)) return { ok: false, error: 'bad index' };
+      if (!LAYOUTS.has(m.layout)) return { ok: false, error: 'bad layout' };
+      if (!nat(m.frame, 2 ** 52)) return { ok: false, error: 'bad frame' };
+      if (!RANGES.includes(m.range)) return { ok: false, error: 'bad range' };
+      return { ok: true, msg: { type: 'image', index: m.index, layout: m.layout, frame: m.frame, range: m.range } };
+    }
     case 'select': {
       if (!idx(m.index)) return { ok: false, error: 'bad index' };
       if (m.slice === undefined || m.slice === null) return { ok: true, msg: { type: 'select', index: m.index } };
@@ -64,7 +74,7 @@ function publicModel(model, fileName) {
   return {
     type: 'model', version: PROTOCOL_VERSION, fileName, format: model.format, fileSize: model.fileSize,
     totalParams: model.totalParams, info: model.info, metadata: model.metadata, warnings: model.warnings,
-    tensors: model.tensors.map(t => ({ name: t.name, dtype: t.dtype, rawDtype: t.rawDtype, shape: t.shape, numel: t.numel, nbytes: t.nbytes, offset: t.offset, readable: !!t.readable, note: t.note })),
+    tensors: model.tensors.map(t => ({ name: t.name, dtype: t.dtype, rawDtype: t.rawDtype, shape: t.shape, numel: t.numel, nbytes: t.nbytes, offset: t.offset, readable: !!t.readable, note: t.note, image: imageInfo(t) })),
   };
 }
 

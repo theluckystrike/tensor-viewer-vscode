@@ -8,7 +8,8 @@ const { displayText, displayComplex, exactText, complexText, PRECISIONS } = requ
   const app = document.getElementById('app');
   const saved = vscode.getState() || {};
   const S = { model: null, filter: '', sort: { key: null, dir: 1 }, selected: -1, limit: 500, tab: 'tensors', sample: null, sampleFor: -1, mdFilter: '', error: null,
-    slices: {}, sliceStats: false, vpage: { row: 0, col: 0 }, vals: null, valsErr: null, prec: PRECISIONS.includes(saved.prec) ? saved.prec : 'auto' };
+    slices: {}, sliceStats: false, vpage: { row: 0, col: 0 }, vals: null, valsErr: null, prec: PRECISIONS.includes(saved.prec) ? saved.prec : 'auto',
+    img: {}, imgRes: null, errorAction: null };
   const PAGE_ROWS = 32;
 
   // ---------- helpers ----------
@@ -116,7 +117,8 @@ const { displayText, displayComplex, exactText, complexText, PRECISIONS } = requ
     const m = ev.data;
     if (!m || typeof m !== 'object') return;
     if (m.type === 'model') {
-      S.model = m; S.error = null;
+      S.model = m; S.error = null; S.errorAction = null;
+      S.selected = -1; S.slices = {}; S.img = {}; S.imgRes = null; S.sample = null; S.sampleFor = -1; S.vals = null; S.valsErr = null;
       const first = m.tensors.findIndex(t => t.readable);
       render();
       if (first >= 0) select(first);
@@ -130,8 +132,12 @@ const { displayText, displayComplex, exactText, complexText, PRECISIONS } = requ
       renderValues();
     } else if (m.type === 'exported') {
       flash(m.text);
+    } else if (m.type === 'image' || m.type === 'imageError') {
+      if (m.index !== S.selected || !sameImg(m.req, imgReq())) return;
+      S.imgRes = m;
+      renderImage();
     } else if (m.type === 'error') {
-      S.error = m.message; render();
+      S.error = m.message; S.errorAction = m.action === 'rawLayout' ? 'rawLayout' : null; render();
     } else if (m.type === 'copied') {
       flash(`Copied ${m.text.length > 60 ? m.text.slice(0, 60) + '...' : m.text}`);
     }
@@ -166,7 +172,7 @@ const { displayText, displayComplex, exactText, complexText, PRECISIONS } = requ
   }
 
   function select(i) {
-    S.selected = i; S.sample = null; S.sampleFor = -1; S.vpage = { row: 0, col: 0 }; S.vals = null; S.valsErr = null;
+    S.selected = i; S.sample = null; S.sampleFor = -1; S.vpage = { row: 0, col: 0 }; S.vals = null; S.valsErr = null; S.imgRes = null; imgAsked = null;
     for (const r of document.querySelectorAll('tr.sel')) r.classList.remove('sel');
     const row = document.querySelector(`tr[data-i="${i}"]`);
     if (row) { row.classList.add('sel'); row.scrollIntoView({ block: 'nearest' }); }
@@ -177,12 +183,19 @@ const { displayText, displayComplex, exactText, complexText, PRECISIONS } = requ
 
   // ---------- layout ----------
   function render() {
-    if (S.error) { app.replaceChildren(el('div', { class: 'fatal' }, [el('h2', { text: 'Tensor Viewer could not open this file' }), el('p', { text: S.error })])); return; }
+    if (S.error) {
+      const kids = [el('h2', { text: S.errorAction === 'rawLayout' ? 'Read this file as a raw array' : 'Tensor Viewer could not open this file' }), el('p', { text: S.error })];
+      if (S.errorAction === 'rawLayout') kids.push(el('div', { class: 'btns' }, [el('button', { class: 'btn primary', id: 'raw-layout', text: 'Choose type and shape...', onclick: () => vscode.postMessage({ type: 'rawLayout' }) })]));
+      else kids.push(el('p', { class: 'note', text: 'Nothing in the file was run or changed. If this is an array written by ndarray.tofile(), right-click it in the Explorer and pick "Open as Raw Array...".' }));
+      app.replaceChildren(el('div', { class: 'fatal' }, kids));
+      return;
+    }
     const m = S.model;
     if (!m) return;
     const readableBytes = m.tensors.reduce((a, t) => a + (t.nbytes || 0), 0);
     const head = el('header', { class: 'head' }, [
-      el('div', { class: 'title' }, [el('span', { class: 'fname', text: m.fileName }), el('span', { class: 'badge', text: m.format.toUpperCase() })]),
+      el('div', { class: 'title' }, [el('span', { class: 'fname', text: m.fileName }), el('span', { class: 'badge', text: m.format === 'raw' ? 'RAW ARRAY' : m.format.toUpperCase() }),
+        m.format === 'raw' ? el('button', { class: 'btn', id: 'raw-layout', text: 'Change type and shape...', onclick: () => vscode.postMessage({ type: 'rawLayout' }) }) : null]),
       el('div', { class: 'facts' }, [
         fact('Parameters', compact(m.totalParams), nf.format(m.totalParams)),
         fact('Tensors', nf.format(m.tensors.length)),
@@ -307,6 +320,12 @@ const { displayText, displayComplex, exactText, complexText, PRECISIONS } = requ
     if (!t.readable) { /* note says why */ } else if (!s) parts.push(el('p', { class: 'loading', text: 'Reading values...' }));
     else if (s.type === 'sampleError') parts.push(el('p', { class: 'note err', text: s.message }));
     else parts.push(...sampleView(t, s.result));
+    if (t.readable && t.image) {
+      // The picture goes right under the stats line, above the heatmap.
+      const how = parts.findIndex(p => p && p.classList && p.classList.contains('how'));
+      const block = [el('h3', { text: 'Image' }), el('div', { id: 'imgbox', class: 'imgbox' })];
+      if (how >= 0) parts.splice(how + 1, 0, ...block); else parts.push(...block);
+    }
     if (t.readable) {
       const hist = parts.findIndex(p => p && p.classList && p.classList.contains('hist-h'));
       const vbox = el('div', { id: 'values', class: 'values' });
@@ -315,6 +334,75 @@ const { displayText, displayComplex, exactText, complexText, PRECISIONS } = requ
     }
     box.replaceChildren(...parts);
     if (t.readable) renderValues();
+    if (t.readable && t.image) renderImage();
+  }
+
+  // ---------- image ----------
+  // Any array with a picture layout (H x W, H x W x C, C x H x W, plus frame dimensions) can be drawn.
+  // RGB layouts and uint8 arrays show at once; other arrays wait for "Show as image".
+  const RANGE_LABELS = [['auto', 'Auto'], ['minmax', 'Min to max'], ['01', '0 to 1'], ['0255', '0 to 255'], ['sym', 'Symmetric around 0']];
+  function imgState() {
+    const t = S.model.tensors[S.selected];
+    let st = S.img[S.selected];
+    if (!st) st = S.img[S.selected] = { layout: t.image.layouts[0].id, frame: 0, range: 'auto', show: !!t.image.suggest };
+    return st;
+  }
+  function imgReq() {
+    const st = imgState();
+    return { layout: st.layout, frame: st.frame, range: st.range };
+  }
+  const sameImg = (a, b) => !!a && !!b && a.layout === b.layout && a.frame === b.frame && a.range === b.range;
+  function requestImage() {
+    S.imgRes = null;
+    requestImageOnce();
+  }
+  function renderImage() {
+    const box = document.getElementById('imgbox');
+    const t = S.model && S.model.tensors[S.selected];
+    if (!box || !t || !t.image) return;
+    const st = imgState();
+    const L = t.image.layouts.find(l => l.id === st.layout) || t.image.layouts[0];
+    if (!st.show) {
+      const desc = `${L.H} x ${L.W}${L.C > 1 ? ' x ' + L.C : ''}${L.frames > 1 ? `, ${nf.format(L.frames)} frames` : ''}`;
+      box.replaceChildren(el('div', { class: 'btns' }, [el('button', { class: 'btn', id: 'show-image', text: 'Show as image', title: `Draw this array as a picture (${desc})`, onclick: () => { st.show = true; requestImage(); renderImage(); } }),
+        el('span', { class: 'cap', text: ` ${desc}` })]));
+      return;
+    }
+    const set = patch => { Object.assign(st, patch); requestImage(); renderImage(); };
+    const controls = [];
+    if (t.image.layouts.length > 1) {
+      const sel = el('select', { id: 'img-layout', 'aria-label': 'Picture layout' }, t.image.layouts.map(l => el('option', { value: l.id, text: l.label })));
+      sel.value = L.id;
+      sel.addEventListener('change', () => set({ layout: sel.value, frame: 0 }));
+      controls.push(el('label', { class: 'ctl' }, [el('span', { class: 'fl', text: 'Layout' }), sel]));
+    }
+    if (L.frames > 1) {
+      const inp = el('input', { type: 'number', class: 'num', id: 'img-frame', min: 0, max: L.frames - 1, step: 1, value: st.frame, 'aria-label': `Frame (0 to ${L.frames - 1})` });
+      const go = v => { v = Math.max(0, Math.min(L.frames - 1, Math.round(Number(v)) || 0)); if (v !== st.frame) set({ frame: v }); else inp.value = v; };
+      inp.addEventListener('change', () => go(inp.value));
+      inp.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); go(inp.value); } });
+      controls.push(el('span', { class: 'ctl' }, [el('span', { class: 'fl', text: 'Frame' }),
+        el('button', { class: 'btn', id: 'img-prev', text: '<', title: 'Previous frame', 'aria-label': 'Previous frame', onclick: () => go(st.frame - 1) }), inp,
+        el('button', { class: 'btn', id: 'img-next', text: '>', title: 'Next frame', 'aria-label': 'Next frame', onclick: () => go(st.frame + 1) }),
+        el('span', { class: 'cap', text: ` of ${nf.format(L.frames)}` })]));
+    }
+    const rsel = el('select', { id: 'img-range', 'aria-label': 'Value range' }, RANGE_LABELS.map(([v, l]) => el('option', { value: v, text: l })));
+    rsel.value = st.range;
+    rsel.addEventListener('change', () => set({ range: rsel.value }));
+    controls.push(el('label', { class: 'ctl' }, [el('span', { class: 'fl', text: 'Range' }), rsel]));
+    const kids = [el('div', { class: 'imgctl' }, controls)];
+    const r = S.imgRes && sameImg(S.imgRes.req, imgReq()) && S.imgRes.index === S.selected ? S.imgRes : null;
+    if (!r) { kids.push(el('p', { class: 'loading', text: 'Drawing...' })); requestImageOnce(); }
+    else if (r.type === 'imageError') kids.push(el('p', { class: 'note err', text: r.message }));
+    else kids.push(imageView(r.result, Math.max(240, Math.min(640, (document.getElementById('detail').clientWidth || 480) - 44))));
+    box.replaceChildren(...kids);
+  }
+  let imgAsked = null;
+  function requestImageOnce() {
+    const key = JSON.stringify([S.selected, imgReq()]);
+    if (imgAsked === key) return;
+    imgAsked = key;
+    vscode.postMessage({ type: 'image', index: S.selected, ...imgReq() });
   }
 
   function sliceBar(t) {
@@ -434,7 +522,7 @@ const { displayText, displayComplex, exactText, complexText, PRECISIONS } = requ
     const width = Math.max(240, Math.min(640, (document.getElementById('detail').clientWidth || 480) - 44));
     if (r.view && r.view.kind === 'heatmap') out.push(el('h3', { text: 'Heatmap' }), heatmap(r.view, width));
     if (r.view && r.view.kind === 'line') out.push(el('h3', { text: 'Values by index' }), linePlot(r.view, width));
-    if (r.view && r.view.kind === 'image') out.push(el('h3', { text: 'Image' }), imageView(r.view, width));
+    if (r.view && r.view.kind === 'image' && !t.image) out.push(el('h3', { text: 'Image' }), imageView(r.view, width));
     if (r.hist) out.push(el('h3', { class: 'hist-h', text: 'Histogram' }), histogram(r.hist, width));
     return out;
   }
@@ -570,7 +658,20 @@ const { displayText, displayComplex, exactText, complexText, PRECISIONS } = requ
     g.drawImage(off, 0, 0, w, h);
     c.setAttribute('role', 'img');
     c.setAttribute('aria-label', `Image ${v.srcWidth} by ${v.srcHeight} pixels`);
-    return el('div', { class: 'viz' }, [c, el('p', { class: 'cap', text: `${v.srcHeight} x ${v.srcWidth} pixels, ${v.channels} channel${v.channels > 1 ? 's' : ''}, uint8.${v.width !== v.srcWidth ? ` Shown at ${v.width} x ${v.height}.` : ''}` })]);
+    const parts = [`${v.srcHeight} x ${v.srcWidth} pixels, ${v.channels} channel${v.channels > 1 ? 's' : ''}, ${v.dtype || 'uint8'}.`];
+    if (v.width !== v.srcWidth) parts.push(`Shown at ${v.width} x ${v.height}.`);
+    if (v.frames > 1) parts.push(`Frame ${nf.format(v.frame)} of ${nf.format(v.frames)}, index [${v.frameIndex.join(', ')}].`);
+    if (v.lo !== undefined && !(v.lo === 0 && v.hi === 255 && v.dtype === 'uint8')) parts.push(`Black is ${num(v.lo)} and white is ${num(v.hi)}${v.channels >= 3 ? ' in each channel' : ''}.`);
+    if (v.nonFinite) parts.push(`${nf.format(v.nonFinite)} NaN or Inf value${v.nonFinite > 1 ? 's' : ''}${v.channels === 1 ? ', drawn in magenta' : ''}.`);
+    if (v.lo !== undefined) {
+      c.addEventListener('mousemove', ev => {
+        const rect = c.getBoundingClientRect();
+        const x = Math.floor(((ev.clientX - rect.left) / rect.width) * v.srcWidth), y = Math.floor(((ev.clientY - rect.top) / rect.height) * v.srcHeight);
+        if (x >= 0 && y >= 0 && x < v.srcWidth && y < v.srcHeight) showTip(ev, [`row ${y}, column ${x}`]);
+      });
+      c.addEventListener('mouseleave', hideTip);
+    }
+    return el('div', { class: 'viz' }, [c, el('p', { class: 'cap', text: parts.join(' ') })]);
   }
 
   let rz = 0;

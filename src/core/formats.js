@@ -4,6 +4,7 @@
 const { readNpyHeader, descrLabel } = require('./npy');
 const { readCentralDirectory, entrySource } = require('./zip');
 const { SAFETENSORS, PLAIN, GGML } = require('./dtypes');
+const { openRaw } = require('./raw');
 
 const MAX_SAFETENSORS_HEADER = 100 * 1024 * 1024;
 const MAX_TENSORS = 200000;
@@ -191,10 +192,17 @@ async function openGguf(source) {
 }
 
 /**
- * Open a tensor file from a Source.
+ * Open a tensor file from a Source. With opts.raw ({kind, shape, offset, littleEndian}) the file is read as a raw array.
  * @returns {Promise<{format:string, tensors:object[], metadata:object[], info:object[], warnings:string[], totalParams:number, fileSize:number}>}
  */
-async function openTensorFile(source, fileName) {
+async function openTensorFile(source, fileName, opts = {}) {
+  if (opts.raw) {
+    const model = openRaw(source, opts.raw);
+    model.fileSize = source.size;
+    model.totalParams = model.tensors.reduce((a, t) => a + (t.numel || 0), 0);
+    return model;
+  }
+  if (source.size === 0) throw new Error(`${fileName} is empty (0 bytes), so there is nothing to show.`);
   const format = formatFromName(fileName);
   if (!format) throw new Error(`Tensor Viewer opens .npy, .npz, .safetensors and .gguf files, not ${fileName}.`);
   const fn = { npy: openNpy, npz: openNpz, safetensors: openSafetensors, gguf: openGguf }[format];

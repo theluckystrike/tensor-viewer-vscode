@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.3.0 (2026-11-07)
+
+- Arrays as pictures. Any array shaped `(H, W)`, `(H, W, C)` or `(C, H, W)` with 1, 3 or 4 channels, with any number of leading frame dimensions, shows in an Image section. You can pick the layout, the frame and the value range. Only the rows the picture needs are read. Before, only `(H, W, 3)` uint8 arrays were drawn.
+- Raw binary arrays. "Open as Raw Array..." (Explorer right-click on `.bin`, `.raw`, `.dat` and similar, or the Command Palette) reads files from `ndarray.tofile()` with the dtype, shape, header size and byte order you give. Stats, values, pictures and Save as .npy work as for `.npy`. The layout is kept per file, and "Change type and shape..." changes it.
+- An empty file now shows "is empty (0 bytes)" instead of a parse error.
+- Marketplace name is now "NPZ & NPY Viewer, GGUF & Safetensors (NumPy Viewer)", so a search for NPZ viewer finds it. The extension ID, settings and commands stay the same.
+
 ## 0.2.4 (2026-11-07)
 
 - "More free viewers" now starts with the Zovo extensions most related to this one. Picking one opens its Marketplace page, where you choose to install it.

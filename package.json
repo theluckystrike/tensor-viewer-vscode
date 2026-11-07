@@ -1,8 +1,8 @@
 {
   "name": "tensor-viewer",
-  "displayName": "GGUF, Safetensors & NPY Viewer (NumPy Viewer)",
-  "description": "View GGUF, Safetensors and NPY/NPZ files in VS Code with every tensor's name, shape and dtype, plus stats and heatmaps, without Python and offline.",
-  "version": "0.2.4",
+  "displayName": "NPZ & NPY Viewer, GGUF & Safetensors (NumPy Viewer)",
+  "description": "NPZ and NPY viewer for NumPy arrays, plus GGUF and Safetensors models: shape, dtype, stats, heatmaps, images with layout and frame pickers, and raw .bin arrays from tofile(). Offline, no Python.",
+  "version": "0.3.0",
   "publisher": "zovo",
   "license": "MIT",
   "icon": "icon.png",
@@ -21,20 +21,21 @@
   ],
   "keywords": [
     "npz viewer",
+    "npy viewer",
     "numpy viewer",
-    "gguf",
-    "safetensors",
-    "npy",
-    "tensor viewer",
-    "npz",
-    "numpy",
-    "tensor",
-    "tensors",
     "gguf viewer",
     "safetensors viewer",
-    "npy viewer",
+    "tensor viewer",
+    "npz",
+    "npy",
+    "numpy",
+    "gguf",
+    "safetensors",
+    "tensor",
+    "npy image",
+    "raw binary",
+    "tofile",
     "llm",
-    "llama",
     "llama.cpp",
     "ollama",
     "huggingface",
@@ -46,7 +47,6 @@
     "pytorch",
     "ndarray",
     "dtype",
-    "shape",
     "heatmap",
     "metadata",
     "offline"
@@ -79,9 +79,36 @@
           }
         ],
         "priority": "default"
+      },
+      {
+        "viewType": "tensorViewer.raw",
+        "displayName": "Tensor Viewer (raw binary array)",
+        "selector": [
+          {
+            "filenamePattern": "*.bin"
+          },
+          {
+            "filenamePattern": "*.raw"
+          },
+          {
+            "filenamePattern": "*.dat"
+          },
+          {
+            "filenamePattern": "*.f32"
+          },
+          {
+            "filenamePattern": "*.f64"
+          }
+        ],
+        "priority": "option"
       }
     ],
     "commands": [
+      {
+        "command": "tensorViewer.openRaw",
+        "title": "Open as Raw Array...",
+        "category": "Tensor Viewer"
+      },
       {
         "command": "tensorViewer.openWalkthrough",
         "title": "Get Started",
@@ -165,7 +192,23 @@
           }
         ]
       }
-    ]
+    ],
+    "menus": {
+      "explorer/context": [
+        {
+          "command": "tensorViewer.openRaw",
+          "when": "!explorerResourceIsFolder && resourceExtname =~ /^\\.(bin|raw|dat|data|f16|f32|f64|i8|u8|i16|u16|i32|u32|i64|u64|img|out)$/i",
+          "group": "navigation@90"
+        }
+      ],
+      "editor/title/context": [
+        {
+          "command": "tensorViewer.openRaw",
+          "when": "resourceExtname =~ /^\\.(bin|raw|dat|data|f16|f32|f64|i8|u8|i16|u16|i32|u32|i64|u64|img|out)$/i",
+          "group": "3_open@90"
+        }
+      ]
+    }
   },
   "scripts": {
     "build": "node scripts/build.js --production",

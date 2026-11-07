@@ -11,3 +11,6 @@ images/gguf-metadata.png
 .github/**
 images/vscode-*
 images/demo-*
+images/nchw-batch.png
+images/uint8-stack.png
+images/raw-bin.png

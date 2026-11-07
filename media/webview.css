@@ -85,3 +85,9 @@ table.vals { border-collapse: collapse; font-family: var(--vscode-editor-font-fa
 .vals tbody tr:hover td { background: var(--vscode-list-hoverBackground); }
 .vals td.neg { color: var(--vscode-charts-blue, var(--vscode-foreground)); }
 .vals td.nf { color: var(--vscode-errorForeground, #f14c4c); }
+.imgctl { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 16px; margin: 6px 0 8px; font-size: 12px; }
+.imgctl .ctl { display: inline-flex; align-items: center; gap: 4px; }
+.imgctl select { font: inherit; font-size: 12px; color: var(--vscode-dropdown-foreground); background: var(--vscode-dropdown-background); border: 1px solid var(--vscode-dropdown-border, transparent); border-radius: 2px; padding: 1px 4px; }
+.btn.primary { color: var(--vscode-button-foreground); background: var(--vscode-button-background); }
+.btn.primary:hover { background: var(--vscode-button-hoverBackground, var(--vscode-button-background)); }
+.title .btn { margin-left: 10px; }
