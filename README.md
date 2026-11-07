@@ -1,4 +1,4 @@
-# NPZ & NPY Viewer, GGUF & Safetensors (NumPy Viewer)
+# NPZ Viewer & NPY Viewer, GGUF & Safetensors (NumPy Viewer)
 
 [![VS Code Marketplace installs](https://img.shields.io/visual-studio-marketplace/i/zovo.tensor-viewer?label=VS%20Code%20installs)](https://marketplace.visualstudio.com/items?itemName=zovo.tensor-viewer)
 [![Open VSX version](https://img.shields.io/open-vsx/v/zovo/tensor-viewer?label=Open%20VSX)](https://open-vsx.org/extension/zovo/tensor-viewer)

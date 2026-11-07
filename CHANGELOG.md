@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.3.1 (2026-11-07)
+
+- The Marketplace name is now "NPZ Viewer & NPY Viewer, GGUF & Safetensors (NumPy Viewer)" (it was "NPZ & NPY Viewer, GGUF & Safetensors (NumPy Viewer)"). The extension id, commands and settings stay the same.
+
 ## 0.3.0 (2026-11-07)
 
 - Arrays as pictures. Any array shaped `(H, W)`, `(H, W, C)` or `(C, H, W)` with 1, 3 or 4 channels, with any number of leading frame dimensions, shows in an Image section. You can pick the layout, the frame and the value range. Only the rows the picture needs are read. Before, only `(H, W, 3)` uint8 arrays were drawn.
