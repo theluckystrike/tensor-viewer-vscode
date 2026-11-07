@@ -117,7 +117,7 @@ Deflated `.npz` entries can't be read at an offset. For those, the header comes 
 | `tensorViewer.sampleValues` | 2,000,000 | Most values read from one tensor for stats and plots |
 | `tensorViewer.maxRemoteFileMB` | 512 | Files not on local disk are read whole, up to this size |
 | `tensorViewer.autoReload` | true | Read the file again when it changes on disk, keeping the selected tensor |
-| `tensorViewer.askForRating` | true | Ask one time for a Marketplace rating, after 5 files and 2 days. Turn it off with `false` |
+| `tensorViewer.askForRating` | true | Ask for a Marketplace rating after 3 files opened without an error on 2 different days. "Later" asks one more time after 7 days, "No thanks" never again. It never asks after an error. Turn it off with `false`. |
 
 The Values table reads only the cells on the page, so a page of a 10 GB tensor costs a few KB.
 

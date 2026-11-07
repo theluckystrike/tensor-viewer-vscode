@@ -14,7 +14,7 @@ const { PLAIN } = require('./core/dtypes');
 const { createRatingPrompt } = require('./rate');
 const { registerSupport, commandUris, showLinks } = require('./support');
 
-let rating = { success() {} };
+let rating = { success() {}, failure() {} };
 
 const VIEW_TYPE = 'tensorViewer.view';
 const RAW_VIEW_TYPE = 'tensorViewer.raw';
@@ -238,7 +238,7 @@ class TensorEditorProvider {
           if (!layout) {
             const size = (await vscode.workspace.fs.stat(uri)).size;
             layout = await askRawLayout(uri, size, null);
-            if (!layout) { const e = new Error(`Pick the value type and shape to read ${name} as a raw array.`); e.needsLayout = true; throw e; }
+            if (!layout) { const e = new Error(`Pick the value type and shape to read ${name} as a raw array.`); e.needsLayout = true; e.noLayoutYet = true; throw e; }
             await storeLayout(ctx, uri, layout);
           }
         }
@@ -262,6 +262,9 @@ class TensorEditorProvider {
         if (!counted) { counted = true; rating.success(); }
       } catch (e) {
         post({ type: 'error', message: e.message || String(e), action: e.needsLayout ? 'rawLayout' : undefined });
+        // Rating: a file that did not open blocks the ask. Not counted: a raw file whose type and shape were not
+        // picked yet, a closed tab, and a plain-text .pth path file, which moves to the text editor (see below).
+        if (!e.noLayoutYet && e.message !== 'closed' && !(!isRaw && /\.pth$/i.test(name) && await looksLikeText(uri).catch(() => false))) rating.failure();
       }
     };
     load();
@@ -391,7 +394,7 @@ class TensorEditorProvider {
 }
 
 function activate(context) {
-  rating = createRatingPrompt({ vscode, context, extensionId: 'zovo.tensor-viewer', section: 'tensorViewer', message: (n) => `Tensor Viewer has opened ${n} files for you. A rating helps other people find it.` });
+  rating = createRatingPrompt({ vscode, context, extensionId: 'zovo.tensor-viewer', section: 'tensorViewer', name: 'NPZ Viewer & NPY Viewer' });
   registerSupport({ vscode, context, prefix: 'tensorViewer', selfId: 'zovo.tensor-viewer' });
   context.subscriptions.push(
     vscode.window.registerCustomEditorProvider(VIEW_TYPE, new TensorEditorProvider(context), {

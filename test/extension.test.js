@@ -330,3 +330,33 @@ test('a plain-text Python .pth path file reopens in the text editor; PyTorch and
     assert.strictEqual(r.opened.length, 0, '.pt files never fall back');
   } finally { fs.rmSync(dir, { recursive: true, force: true }); }
 });
+
+test('rating wiring: a file that opens counts once, a broken file blocks the ask, a text .pth path file does not', async () => {
+  const fs = require('fs'); const os = require('os');
+  const store = new Map();
+  const globalState = { get: k => store.get(k), update: async (k, v) => { store.set(k, v); } };
+  ext.activate({ subscriptions: [], extensionUri: vscodeMock.Uri.file(root), extensionPath: root, globalState });
+  const provider = registered.editors[0].provider;
+  const state = () => store.get('zovo.rating.v2') || { count: 0, lastErrorAt: 0 };
+  const open = async (file, wait) => {
+    const f = fakePanel();
+    await provider.resolveCustomEditor(provider.openCustomDocument(vscodeMock.Uri.file(file)), f.panel);
+    f.send({ type: 'ready' });
+    await f.until(x => x.type === wait);
+    f.send({ type: 'ready' }); // a hidden tab that comes back asks again; it must not count twice
+    await new Promise(r => setTimeout(r, 200));
+    if (!f.panel.disposedByExt) f.dispose();
+  };
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'tens-rate-'));
+  try {
+    await open(path.join(FIX, 'tiny-llama-q8.gguf'), 'model');
+    assert.strictEqual(state().count, 1);
+    assert.strictEqual(state().lastErrorAt, 0);
+    fs.writeFileSync(path.join(dir, 'site.pth'), 'import os\n');
+    await open(path.join(dir, 'site.pth'), 'error');
+    assert.strictEqual(state().lastErrorAt, 0, 'a plain-text .pth file moves to the text editor; that is not a failure');
+    await open(path.join(FIX, 'broken_header.safetensors'), 'error');
+    assert.ok(state().lastErrorAt > 0, 'a file that did not open is a failure');
+    assert.strictEqual(state().count, 1);
+  } finally { fs.rmSync(dir, { recursive: true, force: true }); }
+});

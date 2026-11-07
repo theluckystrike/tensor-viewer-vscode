@@ -9,6 +9,7 @@
 - More names are rated risky, such as `_posixsubprocess`, `pydoc`, `io.open`, `torch.jit.load` and `torch.utils.cpp_extension`.
 - Auto-reload: the view reads the file again when it changes on disk and keeps the selected tensor, filter and tab. Setting: `tensorViewer.autoReload`.
 - Marketplace name is now "NPZ Viewer & NPY Viewer, PyTorch, GGUF & Safetensors (NumPy Viewer)". The extension id, commands and settings stay the same.
+- The rating question now comes after 3 files that opened without an error on 2 different days, and never after an error. "Later" asks one more time after 7 days, "No thanks" ends it, and it never asks more than 2 times. `tensorViewer.askForRating: false` turns it off.
 
 ## 0.3.2 (2026-11-08)
 
