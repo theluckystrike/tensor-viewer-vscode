@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.2.3 (2026-11-07)
+
+- The footer under the viewer has a "Rate" link next to Sponsor and More free viewers. It opens the review page of this extension on the Marketplace. Nothing pops up and nothing asks you for a rating. "Hide" still hides the whole line.
+- Marketplace search keywords updated.
+
 ## 0.2.2 (2026-11-07)
 
 - The "More free viewers" list and the README list now show the 15 Zovo extensions on the Marketplace under their current names, and 12 that are coming soon.

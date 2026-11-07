@@ -2,7 +2,7 @@
   "name": "tensor-viewer",
   "displayName": "GGUF, Safetensors & NPY Viewer (NumPy Viewer)",
   "description": "View GGUF, Safetensors and NPY/NPZ files in VS Code with every tensor's name, shape and dtype, plus stats and heatmaps, without Python and offline.",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "publisher": "zovo",
   "license": "MIT",
   "icon": "icon.png",
@@ -20,6 +20,7 @@
     "Visualization"
   ],
   "keywords": [
+    "npz viewer",
     "numpy viewer",
     "gguf",
     "safetensors",
@@ -48,7 +49,6 @@
     "shape",
     "heatmap",
     "metadata",
-    "inspector",
     "offline"
   ],
   "main": "./dist/extension.js",
