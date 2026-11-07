@@ -20,6 +20,8 @@ const MAX_GATHER_BYTES = 256 * 1048576;
 const MAX_TENSORS = 200000;
 const MAX_METADATA = 2000;
 const MAX_DEPTH = 64;
+const SHORT_NODES = 400;
+const SHORT_DEPTH = 6;
 
 // torch.<Name>Storage -> element kind. Quantized storages hold the stored integers.
 const STORAGE_KIND = {
@@ -210,7 +212,10 @@ function collect(root, ctx) {
     tensors.push(t);
   }
 
-  function short(v, budget = 200) {
+  // Text for one value. A file can share one tuple many times (x1 = (x0, x0), x2 = (x1, x1), ...), so the work is
+  // capped: at most SHORT_NODES values and SHORT_DEPTH levels per call, which also stops cycles.
+  function short(v, budget = 200, cost = { n: 0 }, depth = 0) {
+    if (++cost.n > SHORT_NODES || depth > SHORT_DEPTH) return '...';
     if (v === null) return 'None';
     if (typeof v === 'string') return v.length > budget ? JSON.stringify(v.slice(0, budget)) + '...' : JSON.stringify(v);
     if (typeof v === 'number' || typeof v === 'bigint') return String(v);
@@ -222,7 +227,7 @@ function collect(root, ctx) {
     if (Array.isArray(v)) {
       const open = V.isTuple(v) ? '(' : '[', close = V.isTuple(v) ? ')' : ']';
       let s = open;
-      for (let i = 0; i < v.length; i++) { const p = short(v[i], 40); if (s.length + p.length > budget) { s += `... ${v.length} items`; break; } s += (i ? ', ' : '') + p; }
+      for (let i = 0; i < v.length; i++) { const p = short(v[i], 40, cost, depth + 1); if (s.length + p.length > budget) { s += `... ${v.length} items`; break; } s += (i ? ', ' : '') + p; }
       return s + close;
     }
     if (v instanceof V.PyDict) return `${v.typeName} with ${v.size} keys`;
@@ -417,8 +422,10 @@ async function openTorchLegacy(source) {
     const keys = Array.isArray(parts[4].value) ? parts[4].value.map(String) : [];
     // Each storage: int64 element count, then the bytes. Element sizes come from the storage types in the object pickle.
     const types = new Map();
+    const scanned = new Set(); // shared or cyclic values are scanned once (a file can share one tuple 2^60 ways)
     (function scan(v, d) {
-      if (d > MAX_DEPTH || v === null || typeof v !== 'object') return;
+      if (d > MAX_DEPTH || v === null || typeof v !== 'object' || scanned.has(v)) return;
+      scanned.add(v);
       if (v instanceof V.PyPersistent && Array.isArray(v.pid) && v.pid[0] === 'storage') { types.set(String(v.pid[2]), kindOf(v.pid[1], null)); return; }
       if (v instanceof V.PyObject) { (v.args || []).forEach(x => scan(x, d + 1)); scan(v.state, d + 1); if (v.dictItems) scan(v.dictItems, d + 1); if (v.listItems) v.listItems.forEach(x => scan(x, d + 1)); return; }
       if (v instanceof V.PyDict) { v.values.forEach(x => scan(x, d + 1)); return; }

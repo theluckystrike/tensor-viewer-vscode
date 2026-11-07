@@ -128,3 +128,28 @@ test('PyTorch names and the allow-list', () => {
   for (const n of ['torch._utils._rebuild_tensor_v2', 'torch.FloatStorage', 'collections.OrderedDict', 'torch.float8_e4m3fn', 'torch.Size']) assert.ok(allowed(n), n);
   for (const n of ['os.system', 'posix.system', 'builtins.eval', 'builtins.getattr', '__main__.Net', 'torch.load', 'subprocess.Popen']) assert.ok(!allowed(n), n);
 });
+
+// VER7 red team (2026-11-08): files that share one value many times (x1 = (x0, x0), x2 = (x1, x1), ... 60 levels)
+// or contain themselves must open quickly. Before the fix, three of them kept the extension host busy for minutes.
+for (const file of ['11-cyclic-list.pt', '11b-cyclic-dict.pt', '11c-dag-2pow60-tuples.pt', '11d-legacy-dag-2pow60.pth', '11e-dag-as-dict-key.pt', '11g-legacy-dag-lists.pth']) {
+  test(`hostile shared or cyclic pickle opens in under 2 s: ${file}`, async () => {
+    const t0 = Date.now();
+    const m = await openT(path.join('hostile', file));
+    try {
+      assert.ok(Date.now() - t0 < 2000, `took ${Date.now() - t0} ms`);
+      assert.strictEqual(m.format, 'pytorch');
+      assert.strictEqual(m.tensors.length, 0);
+    } finally { m.close(); }
+  });
+}
+
+test('payload names that run commands, compile code or open files are rated risky', () => {
+  const { rate } = require('../src/core/pickle/safety');
+  for (const q of ['_posixsubprocess.fork_exec', 'pydoc.pipepager', 'torch.utils.cpp_extension.load_inline', 'io.open', '_io.FileIO',
+    'codecs.open', 'pkgutil.resolve_name', 'torch.jit.load', 'numpy.f2py.compile', 'linecache.getline', 'torch.package.PackageImporter']) {
+    assert.strictEqual(rate(q).level, 'danger', q);
+  }
+  // Names in real torch.save and TorchScript files stay allowed or data.
+  for (const q of ['torch._utils._rebuild_tensor_v2', 'collections.OrderedDict', 'torch.FloatStorage']) assert.notStrictEqual(rate(q).level, 'danger', q);
+  assert.ok(allowed('torch.jit._pickle.build_intlist'));
+});

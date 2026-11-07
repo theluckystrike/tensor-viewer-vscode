@@ -11,6 +11,8 @@ const DANGER_MODULES = [
   'urllib', 'urllib2', 'urllib3', 'requests', 'ftplib', 'smtplib', 'telnetlib', 'tempfile', 'pip', 'setuptools', 'distutils',
   'bdb', 'pdb', 'timeit', 'trace', 'profile', 'cProfile', 'imp', 'zipimport', 'signal', 'shelve', 'dill', 'cloudpickle',
   'joblib', 'torch.hub', 'torch.load', 'yaml', 'xmlrpc', 'paramiko', 'fabric', 'docker', 'boto3', 'builtins.__import__',
+  '_posixsubprocess', '_winapi', 'pydoc', 'pkgutil', 'ensurepip', 'venv', 'idlelib', 'numpy.f2py', 'numpy.ctypeslib',
+  'torch.utils.cpp_extension', 'torch.package',
 ];
 const DANGER_BUILTINS = new Set([
   'eval', 'exec', 'compile', 'open', '__import__', 'getattr', 'setattr', 'delattr', 'globals', 'locals', 'vars', 'input',
@@ -22,6 +24,8 @@ const DANGER_EXACT = new Set([
   'operator.call', 'numpy.load', 'numpy.lib.npyio.load', 'numpy.fromfile', 'numpy.core.multiarray.fromfile', 'numpy.testing._private.utils.runstring',
   'torch.load', 'torch.serialization.load', 'torch._C._load', 'pandas.read_pickle', 'pandas.io.pickle.read_pickle', 'logging.config.listen',
   'site.main', 'builtins.object.__reduce__', 'copyreg.__reduce_ex__', 'builtins.getattr',
+  'io.open', '_io.open', 'io.FileIO', '_io.FileIO', 'io.open_code', '_io.open_code', 'codecs.open', 'linecache.getline', 'linecache.getlines',
+  'torch.jit.load', 'torch.jit._load_for_lite_interpreter', 'torch.serialization._load',
 ]);
 
 // Names that rebuild plain data and are fine to import.
@@ -65,7 +69,7 @@ function rate(target) {
 }
 
 function dangerWhy(m) {
-  if (['os', 'posix', 'nt', 'subprocess', 'pty', 'commands', 'popen2', 'platform'].includes(m)) return 'Runs shell commands or programs. Loading this file would run it.';
+  if (['os', 'posix', 'nt', 'subprocess', 'pty', 'commands', 'popen2', 'platform', '_posixsubprocess', '_winapi', 'pydoc'].includes(m)) return 'Runs shell commands or programs. Loading this file would run it.';
   if (['socket', 'http', 'urllib', 'urllib2', 'urllib3', 'requests', 'ftplib', 'smtplib', 'telnetlib', 'webbrowser', 'xmlrpc', 'paramiko', 'boto3', 'docker', 'fabric'].includes(m)) return 'Uses the network. Loading this file would call it.';
   if (['shutil', 'tempfile', 'shelve'].includes(m)) return 'Reads, writes or deletes files. Loading this file would call it.';
   if (['pickle', 'cPickle', '_pickle', 'marshal', 'dill', 'cloudpickle', 'joblib', 'yaml', 'torch.load', 'torch.hub'].includes(m)) return 'Loads more serialized data, which can hide a second payload.';
