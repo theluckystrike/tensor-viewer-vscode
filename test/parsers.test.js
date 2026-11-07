@@ -25,7 +25,7 @@ test('python literal parser reads npy headers and refuses code', () => {
 test('format detection by extension', () => {
   assert.strictEqual(formatFromName('a/b/model.GGUF'), 'gguf');
   assert.strictEqual(formatFromName('x.safetensors'), 'safetensors');
-  assert.strictEqual(formatFromName('x.pt'), null);
+  assert.strictEqual(formatFromName('x.pt'), 'pytorch');
   assert.strictEqual(formatFromName('x.pkl'), null);
 });
 

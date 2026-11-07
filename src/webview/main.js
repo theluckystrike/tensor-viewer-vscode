@@ -117,11 +117,23 @@ const { displayText, displayComplex, exactText, complexText, PRECISIONS } = requ
     const m = ev.data;
     if (!m || typeof m !== 'object') return;
     if (m.type === 'model') {
+      // On an auto-reload, keep the tab, filter, sort, the selected tensor (by name) and its slice.
+      const prev = m.reloaded && S.model ? S.model : null;
+      const keepName = prev && S.selected >= 0 && prev.tensors[S.selected] ? prev.tensors[S.selected].name : null;
+      const keepSlice = prev && S.selected >= 0 ? S.slices[S.selected] : undefined;
+      const wrap = document.getElementById('tablewrap');
+      const scroll = wrap ? wrap.scrollTop : 0;
       S.model = m; S.error = null; S.errorAction = null;
       S.selected = -1; S.slices = {}; S.img = {}; S.imgRes = null; S.sample = null; S.sampleFor = -1; S.vals = null; S.valsErr = null;
-      const first = m.tensors.findIndex(t => t.readable);
+      if (m.reloaded) S.reloadedAt = new Date().toLocaleTimeString();
+      const again = keepName !== null ? m.tensors.findIndex(t => t.name === keepName) : -1;
+      if (again >= 0 && keepSlice) S.slices[again] = keepSlice;
+      const first = again >= 0 ? again : m.tensors.findIndex(t => t.readable);
       render();
+      const w2 = document.getElementById('tablewrap');
+      if (w2 && prev) w2.scrollTop = scroll;
       if (first >= 0) select(first);
+      if (m.reloaded) flash(`The file changed on disk. Reloaded at ${S.reloadedAt}.`);
     } else if (m.type === 'sample' || m.type === 'sampleError') {
       if (m.index !== S.selected || !sameSlice(m.slice || null, statsSlice())) return;
       S.sample = m; S.sampleFor = m.index;
@@ -201,11 +213,11 @@ const { displayText, displayComplex, exactText, complexText, PRECISIONS } = requ
         fact('Tensors', nf.format(m.tensors.length)),
         fact('File size', bytes(m.fileSize), nf.format(m.fileSize) + ' bytes'),
         fact('Tensor data', bytes(readableBytes)),
-        fact('Opened in', m.openMs + ' ms'),
+        S.reloadedAt ? fact('Reloaded', S.reloadedAt, 'The file changed on disk and was read again') : fact('Opened in', m.openMs + ' ms'),
       ]),
     ]);
     const info = m.info && m.info.length ? el('div', { class: 'info' }, m.info.map(x => el('div', { class: 'kv' }, [el('span', { class: 'k', text: x.label }), el('span', { class: 'v', text: x.value, title: x.value })]))) : null;
-    const warns = m.warnings.length ? el('div', { class: 'warn' }, m.warnings.map(w => el('div', { text: w }))) : null;
+    const warns = m.warnings.length ? el('div', { class: 'warn' }, m.warnings.map(w => el('div', { class: /^Risky:/.test(w) ? 'risky' : null, text: w }))) : null;
     const tabs = el('div', { class: 'tabs', role: 'tablist' }, [
       tabBtn('tensors', `Tensors (${nf.format(m.tensors.length)})`),
       tabBtn('metadata', `Metadata (${nf.format(m.metadata.length)})`),

@@ -1,17 +1,17 @@
 'use strict';
-// Minimal zip directory reader for .npz files (np.savez stores, np.savez_compressed deflates).
+// Minimal zip directory reader for .npz files (np.savez stores, np.savez_compressed deflates) and torch.save zips.
 // It reads only the central directory at the end of the file, plus each local header on demand.
 const { SliceSource, InflateSource } = require('./source');
 
 const MAX_ENTRIES = 100000;
 
-async function readCentralDirectory(source) {
+async function readCentralDirectory(source, label = '.npz') {
   const tailLen = Math.min(source.size, 65557);
   const tail = await source.read(source.size - tailLen, tailLen);
   const dv = new DataView(tail.buffer, tail.byteOffset, tail.byteLength);
   let eocd = -1;
   for (let i = tail.length - 22; i >= 0; i--) if (dv.getUint32(i, true) === 0x06054b50) { eocd = i; break; }
-  if (eocd < 0) throw new Error('Not a valid .npz file: the zip directory is missing.');
+  if (eocd < 0) throw new Error(`Not a valid ${label} file: the zip directory at the end is missing. If the file is still being written or was cut off in a download, it is incomplete.`);
   let count = dv.getUint16(eocd + 10, true);
   let cdSize = dv.getUint32(eocd + 12, true);
   let cdOffset = dv.getUint32(eocd + 16, true);
@@ -25,8 +25,8 @@ async function readCentralDirectory(source) {
     cdSize = Number(zv.getBigUint64(40, true));
     cdOffset = Number(zv.getBigUint64(48, true));
   }
-  if (count > MAX_ENTRIES) throw new Error(`The .npz file lists ${count} arrays; the limit is ${MAX_ENTRIES}.`);
-  if (cdOffset + cdSize > source.size) throw new Error('Not a valid .npz file: the zip directory points past the end.');
+  if (count > MAX_ENTRIES) throw new Error(`The ${label} file lists ${count} entries; the limit is ${MAX_ENTRIES}.`);
+  if (cdOffset + cdSize > source.size) throw new Error(`Not a valid ${label} file: the zip directory points past the end. The file may be truncated.`);
   const cd = await source.read(cdOffset, cdSize);
   const cv = new DataView(cd.buffer, cd.byteOffset, cd.byteLength);
   const entries = [];

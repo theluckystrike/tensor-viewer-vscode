@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.4.0 (2026-11-08)
+
+- Opens PyTorch files: `.pt`, `.pth`, `.ckpt` and `pytorch_model*.bin`. Every tensor is listed by its full name with dtype and shape, and a click shows stats, a heatmap and the values. This covers state dicts, training checkpoints with optimizer state, Lightning checkpoints, whole saved models, TorchScript files and the format from before PyTorch 1.6. Epoch, step and loss show in the header.
+- The pickle in a PyTorch file is read without running it, with an allow-list of tensor rebuilders and plain containers. Other Python names are rated in the Metadata tab, risky ones (such as `os.system`) show a warning, and the header says whether `torch.load(weights_only=True)` should load the file.
+- Auto-reload: the view reads the file again when it changes on disk and keeps the selected tensor, filter and tab. Setting: `tensorViewer.autoReload`.
+- Marketplace name is now "NPZ Viewer & NPY Viewer, PyTorch, GGUF & Safetensors (NumPy Viewer)". The extension id, commands and settings stay the same.
+
 ## 0.3.2 (2026-11-08)
 
 - The "More free viewers" list and the README now use the current Marketplace names and include the newest Zovo extensions: ZIP, GCode, EPUB, HAR, font and audio viewers.

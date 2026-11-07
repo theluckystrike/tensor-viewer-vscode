@@ -229,25 +229,58 @@ class TensorEditorProvider {
             await storeLayout(ctx, uri, layout);
           }
         }
-        if (source) { const old = source; source = null; await old.close(); }
-        source = await openSource(uri);
-        if (disposed) { await source.close(); throw new Error('closed'); }
-        try { return await openTensorFile(source, name, layout ? { raw: layout } : {}); } catch (e) { if (isRaw) e.needsLayout = true; throw e; }
+        // The old file stays open until the new read works, so a reload that fails leaves the view usable.
+        const next = await openSource(uri);
+        if (disposed) { await next.close(); throw new Error('closed'); }
+        let model;
+        try { model = await openTensorFile(next, name, layout ? { raw: layout } : {}); } catch (e) { await next.close(); if (isRaw) e.needsLayout = true; throw e; }
+        const old = source; source = next;
+        if (old) old.close();
+        return model;
       })();
       modelP.catch(() => {});
       // Time to read the header, measured once per load. The webview asks again when a hidden tab comes back.
       openMsP = modelP.then(() => Date.now() - t0, () => 0);
     };
-    const sendModel = async () => {
+    const sendModel = async (reloaded = false) => {
       try {
         const model = await modelP;
-        post({ ...publicModel(model, name), openMs: await openMsP });
+        post({ ...publicModel(model, name), openMs: await openMsP, reloaded });
         if (!counted) { counted = true; rating.success(); }
       } catch (e) {
         post({ type: 'error', message: e.message || String(e), action: e.needsLayout ? 'rawLayout' : undefined });
       }
     };
     load();
+    // Auto-reload: a training loop that saves a checkpoint, or a script that rewrites the file, updates the view.
+    // Writers often truncate first and write for a while, so wait until the size and time stop changing,
+    // and retry a few times when the file does not parse yet.
+    let watchTimer = null, tries = 0, lastStat = null;
+    const scheduleReload = ms => { clearTimeout(watchTimer); watchTimer = setTimeout(reloadIfStable, ms); };
+    const reloadIfStable = async () => {
+      if (disposed) return;
+      let st;
+      try { st = await vscode.workspace.fs.stat(uri); } catch { if (++tries < 10) scheduleReload(1000); return; }
+      const key = `${st.size}:${st.mtime}`;
+      if (key !== lastStat) { lastStat = key; scheduleReload(400); return; }
+      load();
+      try { await modelP; } catch (e) {
+        if (e && e.message === 'closed') return;
+        if (++tries < 6) { lastStat = null; scheduleReload(1000); return; }
+      }
+      tries = 0; lastStat = null;
+      await sendModel(true);
+    };
+    let watcher = null;
+    if (vscode.workspace.getConfiguration('tensorViewer').get('autoReload', true)) {
+      try {
+        watcher = vscode.workspace.createFileSystemWatcher(new vscode.RelativePattern(vscode.Uri.joinPath(uri, '..'), path.posix.basename(uri.path)));
+        const changed = () => { tries = 0; lastStat = null; scheduleReload(300); };
+        // A rewrite in place fires a change; tools that write a temp file and rename it fire a create.
+        watcher.onDidChange(changed);
+        watcher.onDidCreate(changed);
+      } catch { watcher = null; }
+    }
     let reloadFn = null;
     if (isRaw) {
       reloadFn = () => { load(); sendModel(); };
@@ -328,6 +361,8 @@ class TensorEditorProvider {
     });
     panel.onDidDispose(() => {
       disposed = true;
+      clearTimeout(watchTimer);
+      if (watcher) watcher.dispose();
       if (source) source.close();
       if (reloadFn) { const set = rawPanels.get(uri.toString()); if (set) { set.delete(reloadFn); if (!set.size) rawPanels.delete(uri.toString()); } }
     });

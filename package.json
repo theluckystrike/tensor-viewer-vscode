@@ -1,8 +1,8 @@
 {
   "name": "tensor-viewer",
-  "displayName": "NPZ Viewer & NPY Viewer, GGUF & Safetensors (NumPy Viewer)",
-  "description": "NPZ and NPY viewer for NumPy arrays, plus GGUF and Safetensors models: shape, dtype, stats, heatmaps, images with layout and frame pickers, and raw .bin arrays from tofile(). Offline, no Python.",
-  "version": "0.3.2",
+  "displayName": "NPZ Viewer & NPY Viewer, PyTorch, GGUF & Safetensors (NumPy Viewer)",
+  "description": "NPZ and NPY viewer for NumPy arrays, plus PyTorch .pt, .pth and .ckpt checkpoints, GGUF and Safetensors models: names, shape, dtype, stats, heatmaps and images. Reloads when the file changes. Reads pickle without running it. Offline, no Python.",
+  "version": "0.4.0",
   "publisher": "zovo",
   "license": "MIT",
   "icon": "icon.png",
@@ -25,12 +25,17 @@
     "numpy viewer",
     "gguf viewer",
     "safetensors viewer",
+    "pytorch viewer",
+    "pth viewer",
+    "pt viewer",
     "tensor viewer",
     "npz",
     "npy",
     "numpy",
     "gguf",
     "safetensors",
+    "pth",
+    "ckpt",
     "tensor",
     "npy image",
     "raw binary",
@@ -43,13 +48,8 @@
     "checkpoint",
     "quantization",
     "machine learning",
-    "deep learning",
     "pytorch",
-    "ndarray",
-    "dtype",
-    "heatmap",
-    "metadata",
-    "offline"
+    "torch"
   ],
   "main": "./dist/extension.js",
   "activationEvents": [],
@@ -76,6 +76,18 @@
           },
           {
             "filenamePattern": "*.gguf"
+          },
+          {
+            "filenamePattern": "*.pt"
+          },
+          {
+            "filenamePattern": "*.pth"
+          },
+          {
+            "filenamePattern": "*.ckpt"
+          },
+          {
+            "filenamePattern": "pytorch_model*.bin"
           }
         ],
         "priority": "default"
@@ -141,6 +153,11 @@
           "minimum": 1,
           "description": "Files that are not on local disk (remote or virtual workspaces) are read whole. Bigger files show a message instead."
         },
+        "tensorViewer.autoReload": {
+          "type": "boolean",
+          "default": true,
+          "description": "Read the file again when it changes on disk, for example when a training loop saves a new checkpoint. The selected tensor, filter and tab stay as they were. The change shows in files you open next."
+        },
         "tensorViewer.askForRating": {
           "type": "boolean",
           "default": true,
@@ -157,12 +174,12 @@
       {
         "id": "tensorViewer.start",
         "title": "Get started with Tensor Viewer",
-        "description": "Open NumPy, Safetensors and GGUF files and see what is inside.",
+        "description": "Open NumPy, PyTorch, Safetensors and GGUF files and see what is inside.",
         "steps": [
           {
             "id": "open",
             "title": "Open a tensor file",
-            "description": "Click any .npy, .npz, .safetensors or .gguf file in the Explorer. It opens in Tensor Viewer with the header read and every tensor listed.\n[Find a model file](command:workbench.action.quickOpen?%5B%22.safetensors%22%5D)",
+            "description": "Click any .npy, .npz, .pt, .pth, .ckpt, .safetensors or .gguf file in the Explorer. It opens in Tensor Viewer with the header read and every tensor listed. PyTorch files are read without running pickle.\n[Find a model file](command:workbench.action.quickOpen?%5B%22.safetensors%22%5D)",
             "media": {
               "image": "images/gguf.png",
               "altText": "A GGUF model open in Tensor Viewer with its metadata, tensor table and a heatmap."

@@ -1,17 +1,19 @@
 'use strict';
-// Opens .npy, .npz, .safetensors and .gguf files into one model: a tensor list plus metadata.
+// Opens .npy, .npz, .safetensors, .gguf and PyTorch (.pt, .pth, .ckpt) files into one model: a tensor list plus metadata.
 // Only headers are read here. Tensor bytes are read later, one tensor at a time, by sample.js.
 const { readNpyHeader, descrLabel } = require('./npy');
 const { readCentralDirectory, entrySource } = require('./zip');
 const { SAFETENSORS, PLAIN, GGML } = require('./dtypes');
 const { openRaw } = require('./raw');
+const { openTorch, isTorchFileName } = require('./torch');
 
 const MAX_SAFETENSORS_HEADER = 100 * 1024 * 1024;
 const MAX_TENSORS = 200000;
 
 function formatFromName(name) {
   const m = /\.(npy|npz|safetensors|gguf)$/i.exec(name || '');
-  return m ? m[1].toLowerCase() : null;
+  if (m) return m[1].toLowerCase();
+  return isTorchFileName(name) ? 'pytorch' : null;
 }
 
 const prod = shape => shape.reduce((a, b) => a * b, 1);
@@ -204,8 +206,8 @@ async function openTensorFile(source, fileName, opts = {}) {
   }
   if (source.size === 0) throw new Error(`${fileName} is empty (0 bytes), so there is nothing to show.`);
   const format = formatFromName(fileName);
-  if (!format) throw new Error(`Tensor Viewer opens .npy, .npz, .safetensors and .gguf files, not ${fileName}.`);
-  const fn = { npy: openNpy, npz: openNpz, safetensors: openSafetensors, gguf: openGguf }[format];
+  if (!format) throw new Error(`Tensor Viewer opens .npy, .npz, .safetensors, .gguf and PyTorch .pt, .pth and .ckpt files, not ${fileName}.`);
+  const fn = { npy: openNpy, npz: openNpz, safetensors: openSafetensors, gguf: openGguf, pytorch: openTorch }[format];
   const model = await fn(source);
   model.fileSize = source.size;
   model.totalParams = model.tensors.reduce((a, t) => a + (t.numel || 0), 0);

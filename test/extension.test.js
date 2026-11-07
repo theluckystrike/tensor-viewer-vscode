@@ -9,6 +9,7 @@ const { FIX } = require('./helpers');
 const root = path.join(__dirname, '..');
 const registered = { editors: [], commands: {} };
 let clipboard = '';
+const watchers = [];
 const vscodeMock = {
   Uri: {
     joinPath: (u, ...p) => ({ ...u, path: path.join(u.path, ...p), fsPath: path.join(u.fsPath || u.path, ...p) }),
@@ -16,7 +17,16 @@ const vscodeMock = {
   },
   window: { registerCustomEditorProvider: (id, provider) => { registered.editors.push({ id, provider }); return { dispose() {} }; } },
   commands: { registerCommand: (id, fn) => { registered.commands[id] = fn; return { dispose() {} }; }, executeCommand: async () => {} },
-  workspace: { getConfiguration: () => ({ get: (_k, d) => d }), fs: {} },
+  RelativePattern: class { constructor(base, pattern) { this.base = base; this.pattern = pattern; } },
+  workspace: {
+    getConfiguration: () => ({ get: (_k, d) => d }),
+    fs: { stat: async u => { const st = require('fs').statSync(u.fsPath); return { size: st.size, mtime: st.mtimeMs }; } },
+    createFileSystemWatcher: pattern => {
+      const w = { pattern, change: [], create: [], disposed: false, onDidChange: fn => w.change.push(fn), onDidCreate: fn => w.create.push(fn), dispose() { w.disposed = true; } };
+      watchers.push(w);
+      return w;
+    },
+  },
   env: { clipboard: { writeText: async t => { clipboard = t; } } },
 };
 const origLoad = Module._load;
@@ -245,4 +255,43 @@ test('the open time is measured once, so a tab that comes back does not show a b
   const b = await f.until(m => m.type === 'model' && f.sent.indexOf(m) >= n);
   assert.strictEqual(b.openMs, a.openMs);
   f.dispose();
+});
+
+test('auto-reload: a rewritten .pt file is read again and a half-written one is retried', async () => {
+  const fs = require('fs');
+  const os = require('os');
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'tv-reload-'));
+  const file = path.join(dir, 'run.pt');
+  const torchDir = path.join(FIX, 'torch');
+  try {
+    fs.copyFileSync(path.join(torchDir, 'state_dict.pt'), file);
+    const provider = registered.editors[0].provider;
+    const f = fakePanel();
+    await provider.resolveCustomEditor(provider.openCustomDocument(vscodeMock.Uri.file(file)), f.panel);
+    f.send({ type: 'ready' });
+    const first = await f.until(m => m.type === 'model');
+    assert.strictEqual(first.format, 'pytorch');
+    assert.strictEqual(first.tensors.length, 9);
+    assert.strictEqual(first.reloaded, false);
+    const w = watchers[watchers.length - 1];
+    assert.strictEqual(w.pattern.pattern, 'run.pt');
+    // A writer that is half done: the zip directory is missing. The viewer must not show an error, it retries.
+    fs.writeFileSync(file, fs.readFileSync(path.join(torchDir, 'truncated.pt')));
+    w.change.forEach(fn => fn());
+    await new Promise(r => setTimeout(r, 900));
+    fs.copyFileSync(path.join(torchDir, 'checkpoint.pth'), file);
+    w.change.forEach(fn => fn());
+    const second = await f.until(m => m.type === 'model' && m.reloaded);
+    assert.strictEqual(second.tensors.length, 27);
+    assert.ok(second.info.some(x => x.label === 'epoch' && x.value === '7'));
+    assert.ok(!f.sent.some(m => m.type === 'error'), 'no error while the file was half written');
+    const i = second.tensors.findIndex(t => t.name === 'model_state_dict.fc.weight');
+    f.send({ type: 'select', index: i });
+    const s = await f.until(m => m.type === 'sample' && m.index === i);
+    assert.strictEqual(s.result.stats.count, 2880);
+    f.dispose();
+    assert.strictEqual(w.disposed, true);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
 });

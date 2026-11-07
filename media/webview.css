@@ -19,6 +19,7 @@ body { margin: 0; padding: 0; color: var(--vscode-foreground); background: var(-
 .kv .k { color: var(--vscode-descriptionForeground); white-space: nowrap; }
 .kv .v { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--vscode-editor-font-family); }
 .warn { padding: 6px 16px; background: var(--vscode-inputValidation-warningBackground, #5a4a0055); border-bottom: 1px solid var(--vscode-inputValidation-warningBorder, #b89500); }
+.warn .risky { margin: -6px -16px 4px; padding: 6px 16px; background: var(--vscode-inputValidation-errorBackground, #5a1d1d); border-left: 3px solid var(--vscode-inputValidation-errorBorder, #be1100); font-weight: 600; }
 .tabs { display: flex; gap: 2px; padding: 6px 12px 0; border-bottom: 1px solid var(--vscode-panel-border, #8883); }
 .tab { background: none; border: 0; border-bottom: 2px solid transparent; color: var(--vscode-descriptionForeground); padding: 4px 10px 6px; cursor: pointer; font: inherit; }
 .tab.on { color: var(--vscode-foreground); border-bottom-color: var(--vscode-focusBorder, #0078d4); }

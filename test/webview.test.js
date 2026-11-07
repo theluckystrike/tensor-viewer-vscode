@@ -31,7 +31,8 @@ test('the webview never turns file content into HTML or code', () => {
 });
 
 test('extension code makes no network calls and never runs pickle', () => {
-  const files = fs.readdirSync(path.join(root, 'src/core')).map(f => path.join(root, 'src/core', f)).concat([path.join(root, 'src/extension.js')]);
+  const files = fs.readdirSync(path.join(root, 'src/core'), { recursive: true }).map(f => path.join(root, 'src/core', f)).filter(f => f.endsWith('.js')).concat([path.join(root, 'src/extension.js')]);
+  assert.ok(files.some(f => f.endsWith(path.join('pickle', 'unpickler.js'))));
   for (const f of files) {
     const s = fs.readFileSync(f, 'utf8');
     for (const bad of ["require('http')", "require('https')", "require('net')", "require('child_process')", 'XMLHttpRequest', 'eval(', 'new Function']) assert.ok(!s.includes(bad), `${path.basename(f)}: ${bad}`);

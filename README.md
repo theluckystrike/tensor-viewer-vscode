@@ -1,9 +1,15 @@
-# NPZ Viewer & NPY Viewer, GGUF & Safetensors (NumPy Viewer)
+# NPZ Viewer & NPY Viewer, PyTorch, GGUF & Safetensors (NumPy Viewer)
 
 [![VS Code Marketplace installs](https://img.shields.io/visual-studio-marketplace/i/zovo.tensor-viewer?label=VS%20Code%20installs)](https://marketplace.visualstudio.com/items?itemName=zovo.tensor-viewer)
 [![Open VSX version](https://img.shields.io/open-vsx/v/zovo/tensor-viewer?label=Open%20VSX)](https://open-vsx.org/extension/zovo/tensor-viewer)
 
-Tensor Viewer is an NPZ and NPY viewer for NumPy arrays that also opens `.gguf` and `.safetensors` model files. It shows every array's name, dtype and shape, plus stats, a heatmap and the values, without Python.
+Tensor Viewer is an NPZ and NPY viewer for NumPy arrays that also opens PyTorch `.pt`, `.pth` and `.ckpt` checkpoints and `.gguf` and `.safetensors` model files. It shows every tensor's name, dtype and shape, plus stats, a heatmap and the values, without Python.
+
+New in 0.4.0:
+
+- PyTorch files: `.pt`, `.pth`, `.ckpt` and `pytorch_model.bin` open with every tensor listed by its full name, such as `model_state_dict.fc.weight` or `optimizer_state_dict.state.0.exp_avg`. Click one for stats, a heatmap and the values. State dicts, full training checkpoints, Lightning `.ckpt` files, whole saved models, TorchScript files and the old format from before PyTorch 1.6 all work. Epoch, step, loss and hyperparameters show in the header and the Metadata tab.
+- The pickle inside is read without running it. Only tensor rebuilders, dtypes and plain containers are understood. Any other Python name is listed with a safety rating, and a file that would run `os.system` or `eval` when loaded shows a red warning. The header also says whether `torch.load(weights_only=True)` should accept the file.
+- Auto-reload: when the file changes on disk, for example when your training loop saves a new checkpoint, the view reads it again and keeps the selected tensor, the filter and the tab. Turn it off with `tensorViewer.autoReload`.
 
 New in 0.3.0:
 
@@ -19,12 +25,12 @@ New in 0.3.0:
 - It opens big checkpoints in well under a second and shows the real numbers. Only the header is read at first, and a click on a tensor reads that tensor's bytes by offset. Our test opens a 10.7 GB safetensors file in under 1 s. The Values table pages through any tensor, one 2-D slice at a time, and Save writes a tensor or a slice to .npy or CSV.
 - It reads the formats local LLM users actually have. GGUF metadata (architecture, context length, file type, tokenizer, chat template) sits next to the quant type of each tensor. Q8_0, Q4_0, Q4_1, Q5_0, Q5_1, Q4_K, Q5_K and Q6_K weights are decoded for stats and heatmaps.
 - It draws arrays as pictures and reads raw binary dumps (see above), which the other NumPy viewers in the Marketplace don't do together.
-- It's safe to open files you downloaded. Nothing in the file is ever run. Pickled object arrays in `.npy` and `.npz` are listed and refused, and the viewer makes no network calls at all.
+- It's safe to open files you downloaded. Nothing in the file is ever run. PyTorch pickles are decoded as data, pickled object arrays in `.npy` and `.npz` are listed and refused, and the viewer makes no network calls at all.
 
 ## Quick start
 
 1. Install Tensor Viewer.
-2. Click any `.gguf`, `.safetensors`, `.npy` or `.npz` file in the Explorer. Then click a tensor in the table.
+2. Click any `.pt`, `.pth`, `.ckpt`, `.gguf`, `.safetensors`, `.npy` or `.npz` file in the Explorer. Then click a tensor in the table.
 
 ![A click on the GGUF file opens its header and tensor table. Typing attn_q filters the table, and clicks on blk.0.attn_q.weight and blk.2.attn_q.weight show their stats and heatmaps](https://raw.githubusercontent.com/theluckystrike/tensor-viewer-vscode/v0.3.0/images/demo-tensor.gif)
 
@@ -93,6 +99,7 @@ The heatmap uses blue for negative values and red for positive ones, with gray a
 | `.npz` | zip directory, stored and deflated entries, zip64 | same as `.npy` |
 | `.safetensors` | JSON header and `__metadata__` | BOOL, U8, I8, I16, U16, I32, U32, I64, U64, F16, BF16, F32, F64, F8_E4M3, F8_E5M2 |
 | `.gguf` | v1 to v3 metadata and tensor info, through @huggingface/gguf | F32, F16, BF16, F64, I8 to I64, Q8_0, Q4_0, Q4_1, Q5_0, Q5_1, Q4_K, Q5_K, Q6_K |
+| PyTorch `.pt`, `.pth`, `.ckpt`, `pytorch_model*.bin` | `torch.save` zip (PyTorch 1.6 and later), the older non-zip format, TorchScript (`torch.jit.save`); state dicts, nested checkpoints, whole `nn.Module` objects, shared storages and strided views | float16/32/64, bfloat16, int8 to int64, uint8 to uint64, bool, complex (as magnitude), float8 e4m3 and e5m2; quantized tensors as their stored integers |
 | raw (`.bin`, `.raw`, `.dat`, any file) | the type, shape, header size and byte order you give | all of the `.npy` types except text and structured |
 
 Other GGUF types (Q2_K, Q3_K, IQ types, TQ, MXFP4) are listed with the right size and offset, but have no stats yet. Text, structured and object arrays in NumPy files are listed without stats.
@@ -109,19 +116,20 @@ Deflated `.npz` entries can't be read at an offset. For those, the header comes 
 |---|---|---|
 | `tensorViewer.sampleValues` | 2,000,000 | Most values read from one tensor for stats and plots |
 | `tensorViewer.maxRemoteFileMB` | 512 | Files not on local disk are read whole, up to this size |
+| `tensorViewer.autoReload` | true | Read the file again when it changes on disk, keeping the selected tensor |
 | `tensorViewer.askForRating` | true | Ask one time for a Marketplace rating, after 5 files and 2 days. Turn it off with `false` |
 
 The Values table reads only the cells on the page, so a page of a 10 GB tensor costs a few KB.
 
 ## Privacy and safety
 
-There's no telemetry and no network access. The webview runs under a strict Content-Security-Policy with no remote scripts, and every name and metadata string is drawn as text, never as HTML. Python pickle is never loaded, so `.pt`, `.pth`, `.pkl` and object arrays inside `.npy` files stay closed. Tensor Viewer never changes the file it shows. Save as .npy and Save as CSV write only to a new file that you pick.
+There's no telemetry and no network access. The webview runs under a strict Content-Security-Policy with no remote scripts, and every name and metadata string is drawn as text, never as HTML. Python pickle is never run. In PyTorch files the pickle is decoded by a reader that turns every class and function name into plain data, then rebuilds tensors from an allow-list (`torch._utils._rebuild_tensor_v2` and the other rebuilders, storage types, dtypes, `OrderedDict`, `dict`, `list`, `tuple`, `set`). Anything else is shown as a placeholder and rated in the Metadata tab. Object arrays inside `.npy` files stay closed. Tensor Viewer never changes the file it shows. Save as .npy and Save as CSV write only to a new file that you pick.
 
 ## Limits
 
 Pictures are drawn at most 512 pixels on the long side, with nearest-neighbor scaling. 2-channel arrays and Fortran-order arrays have no picture view. Pictures from compressed `.npz` entries are limited to frames in the first 64 MB of the entry. Raw files can't be detected by themselves, so a wrong type or shape shows wrong numbers, not an error.
 
-GGUF files split into shards show the tensors of the open shard only, with a note. Heatmaps show at most 256 by 256 cells, each the mean of its block of values. Tensors with three or more dimensions are drawn with the leading dimensions flattened into rows, unless you tick "Use only this slice". Slices of Fortran-order arrays show in the Values table, but the stats and heatmap cover the whole array. CSV export stops at 20 million values; use .npy for bigger tensors. Compressed `.npz` entries can only be read from the start, so values past their first 64 MB are not shown, and entries over 512 MB can't be saved. 64-bit integers above 2^53 lose their last digits in the table and in CSV. The .npy export copies them exactly.
+PyTorch sparse, nested and meta tensors are listed with their shape but not decoded. Strided views bigger than 256 MB that are not plain transposes are listed without values. Tensors saved from a GPU are read the same way as CPU tensors. GGUF files split into shards show the tensors of the open shard only, with a note. Heatmaps show at most 256 by 256 cells, each the mean of its block of values. Tensors with three or more dimensions are drawn with the leading dimensions flattened into rows, unless you tick "Use only this slice". Slices of Fortran-order arrays show in the Values table, but the stats and heatmap cover the whole array. CSV export stops at 20 million values; use .npy for bigger tensors. Compressed `.npz` entries can only be read from the start, so values past their first 64 MB are not shown, and entries over 512 MB can't be saved. 64-bit integers above 2^53 lose their last digits in the table and in CSV. The .npy export copies them exactly.
 
 ## License
 
