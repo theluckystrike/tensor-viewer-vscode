@@ -10,13 +10,14 @@ const root = path.join(__dirname, '..');
 const registered = { editors: [], commands: {} };
 let clipboard = '';
 const watchers = [];
+const executed = [];
 const vscodeMock = {
   Uri: {
     joinPath: (u, ...p) => ({ ...u, path: path.join(u.path, ...p), fsPath: path.join(u.fsPath || u.path, ...p) }),
     file: p => ({ scheme: 'file', path: p, fsPath: p, toString() { return 'file://' + this.path; } }),
   },
   window: { registerCustomEditorProvider: (id, provider) => { registered.editors.push({ id, provider }); return { dispose() {} }; } },
-  commands: { registerCommand: (id, fn) => { registered.commands[id] = fn; return { dispose() {} }; }, executeCommand: async () => {} },
+  commands: { registerCommand: (id, fn) => { registered.commands[id] = fn; return { dispose() {} }; }, executeCommand: async (...a) => { executed.push(a); } },
   RelativePattern: class { constructor(base, pattern) { this.base = base; this.pattern = pattern; } },
   workspace: {
     getConfiguration: () => ({ get: (_k, d) => d }),
@@ -54,6 +55,8 @@ function fakePanel() {
       onDidReceiveMessage: fn => { onMsg = fn; },
     },
     onDidDispose: fn => { onDispose = fn; },
+    viewColumn: 1,
+    dispose: () => { panel.disposedByExt = true; if (onDispose) onDispose(); },
   };
   const until = pred => new Promise((resolve, reject) => {
     const timer = setTimeout(() => reject(new Error('timeout: ' + JSON.stringify(sent.map(m => m.type)))), 10000);
@@ -294,4 +297,36 @@ test('auto-reload: a rewritten .pt file is read again and a half-written one is 
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }
+});
+
+test('a plain-text Python .pth path file reopens in the text editor; PyTorch and binary .pth files do not', async () => {
+  const fs = require('fs'); const os = require('os');
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'tens-pth-'));
+  const provider = registered.editors[0].provider;
+  const run = async (file, wait) => {
+    executed.length = 0;
+    const f = fakePanel();
+    await provider.resolveCustomEditor(provider.openCustomDocument(vscodeMock.Uri.file(file)), f.panel);
+    f.send({ type: 'ready' });
+    const m = await f.until(x => x.type === wait);
+    await new Promise(r => setTimeout(r, 200));
+    const out = { m, opened: executed.filter(a => a[0] === 'vscode.openWith'), disposed: !!f.panel.disposedByExt };
+    if (!out.disposed) f.dispose();
+    return out;
+  };
+  try {
+    fs.writeFileSync(path.join(dir, 'distutils-precedence.pth'), "import os; var = 'SETUPTOOLS_USE_DISTUTILS'\n");
+    fs.writeFileSync(path.join(dir, 'empty.pth'), '');
+    fs.writeFileSync(path.join(dir, 'junk.pth'), Buffer.from([0x13, 0x00, 0xff, 0x00, 0x42]));
+    let r = await run(path.join(dir, 'distutils-precedence.pth'), 'error');
+    assert.strictEqual(r.opened.length, 1); assert.strictEqual(r.opened[0][2], 'default'); assert.ok(r.disposed);
+    r = await run(path.join(dir, 'empty.pth'), 'error');
+    assert.strictEqual(r.opened.length, 1);
+    r = await run(path.join(dir, 'junk.pth'), 'error');
+    assert.strictEqual(r.opened.length, 0); assert.ok(!r.disposed);
+    r = await run(path.join(FIX, 'torch', 'legacy.pth'), 'model');
+    assert.strictEqual(r.opened.length, 0); assert.ok(!r.disposed);
+    r = await run(path.join(FIX, 'torch', 'truncated.pt'), 'error');
+    assert.strictEqual(r.opened.length, 0, '.pt files never fall back');
+  } finally { fs.rmSync(dir, { recursive: true, force: true }); }
 });

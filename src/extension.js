@@ -105,6 +105,19 @@ function settings() {
   return { sampleValues: c.get('sampleValues', 2000000), maxRemoteFileMB: c.get('maxRemoteFileMB', 512) };
 }
 
+/** True when a file starts like plain text: no pickle or zip header, no NUL byte, valid UTF-8 in the first 4 KB. */
+async function looksLikeText(uri) {
+  let src;
+  try {
+    src = await openSource(uri);
+    const head = await src.read(0, Math.min(4096, src.size));
+    if (head.length && (head[0] === 0x80 || (head[0] === 0x50 && head[1] === 0x4b))) return false;
+    if (head.includes(0)) return false;
+    new TextDecoder('utf-8', { fatal: true }).decode(head, { stream: true });
+    return true;
+  } catch { return false; } finally { if (src) await src.close(); }
+}
+
 async function openSource(uri) {
   if (uri.scheme === 'file') return FileSource.open(uri.fsPath);
   // Files that are not on disk (remote or virtual) can only be read whole.
@@ -252,6 +265,14 @@ class TensorEditorProvider {
       }
     };
     load();
+    // Python's site-packages also use .pth, for plain-text path files. When a .pth file is not a PyTorch file and
+    // reads as text, show it in the text editor instead of an error, as VS Code did before this viewer opened .pth.
+    if (!isRaw && /\.pth$/i.test(name)) {
+      modelP.then(() => {}, async () => {
+        if (disposed || !(await looksLikeText(uri)) || disposed) return;
+        try { await vscode.commands.executeCommand('vscode.openWith', uri, 'default', panel.viewColumn); panel.dispose(); } catch { /* the error view stays */ }
+      });
+    }
     // Auto-reload: a training loop that saves a checkpoint, or a script that rewrites the file, updates the view.
     // Writers often truncate first and write for a while, so wait until the size and time stop changing,
     // and retry a few times when the file does not parse yet.
