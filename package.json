@@ -2,7 +2,7 @@
   "name": "tensor-viewer",
   "displayName": "NPZ Viewer & NPY Viewer, GGUF & Safetensors (NumPy Viewer)",
   "description": "NPZ and NPY viewer for NumPy arrays, plus GGUF and Safetensors models: shape, dtype, stats, heatmaps, images with layout and frame pickers, and raw .bin arrays from tofile(). Offline, no Python.",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "publisher": "zovo",
   "license": "MIT",
   "icon": "icon.png",
