@@ -6,6 +6,7 @@ const { readCentralDirectory, entrySource } = require('./zip');
 const { SAFETENSORS, PLAIN, GGML } = require('./dtypes');
 const { openRaw } = require('./raw');
 const { openTorch, isTorchFileName } = require('./torch');
+const { openObjectArray } = require('./pyobj');
 
 const MAX_SAFETENSORS_HEADER = 100 * 1024 * 1024;
 const MAX_TENSORS = 200000;
@@ -33,8 +34,39 @@ function npyTensor(name, h, source, displayOffset) {
   return t;
 }
 
+const isObject = h => /^[<>|=]?O\d*$/.test(typeof h.descr === 'string' ? h.descr : '');
+
+/**
+ * An object array: decode its pickle as data. The arrays inside become tensors; when there are none,
+ * the object array itself stays listed (not plotted) so nothing disappears from the table.
+ */
+async function objectEntry(name, h, source, displayOffset, base) {
+  const r = await openObjectArray(source, h, base);
+  const row = npyTensor(name, h, source, displayOffset);
+  row.note = r.note || (r.tensors.length ? undefined : 'Python objects saved with pickle, read as data and not run. See the Objects tab.');
+  return { row, ...r };
+}
+
 async function openNpy(source) {
   const h = await readNpyHeader(source, 0);
+  if (isObject(h)) {
+    const r = await objectEntry('array', h, source, h.dataOffset, '');
+    const arrays = r.tensors.length;
+    return {
+      format: 'npy',
+      tensors: arrays ? r.tensors : [r.row],
+      objects: r.rows,
+      metadata: [
+        { key: 'npy version', value: h.version },
+        { key: 'descr', value: descrLabel(h.descr) },
+        { key: 'shape', value: `(${h.shape.join(', ')}${h.shape.length === 1 ? ',' : ''})` },
+        { key: 'data offset', value: String(h.dataOffset) },
+        ...r.metadata,
+      ],
+      info: [{ label: 'Object array', value: `${arrays.toLocaleString('en-US')} numeric arrays and ${r.rows.length.toLocaleString('en-US')} values inside. The pickle was read as data, nothing was run.` }],
+      warnings: r.warnings,
+    };
+  }
   return {
     format: 'npy',
     tensors: [npyTensor('array', h, source, h.dataOffset)],
@@ -53,6 +85,8 @@ async function openNpz(source) {
   const entries = (await readCentralDirectory(source)).filter(e => !e.name.endsWith('/'));
   const tensors = [];
   const warnings = [];
+  const objects = [];
+  const objMeta = [];
   let compressed = 0;
   for (const e of entries) {
     const name = e.name.replace(/\.npy$/, '');
@@ -61,6 +95,15 @@ async function openNpz(source) {
       const sub = await entrySource(source, e);
       if (!sub.random) compressed++;
       const h = await readNpyHeader(sub, 0);
+      if (isObject(h)) {
+        const r = await objectEntry(name, h, sub, e.localOffset, name);
+        const at = tensors.length;
+        if (r.tensors.length) tensors.push(...r.tensors); else tensors.push(r.row);
+        for (const row of r.rows) objects.push(row.tensor !== undefined ? { ...row, tensor: row.tensor + at } : row);
+        objMeta.push(...r.metadata);
+        warnings.push(...r.warnings);
+        continue;
+      }
       const t = npyTensor(name, h, sub, e.localOffset);
       t.note = [t.note, sub.random ? '' : 'Compressed entry: large arrays are sampled from the start.'].filter(Boolean).join(' ') || undefined;
       tensors.push(t);
@@ -68,14 +111,20 @@ async function openNpz(source) {
       tensors.push({ name, dtype: '?', shape: [], numel: 0, nbytes: e.size, offset: e.localOffset, readable: false, note: `Could not read this entry: ${err.message}` });
     }
   }
-  return {
+  const model = {
     format: 'npz', tensors,
     metadata: [
       { key: 'arrays', value: String(tensors.length) },
       { key: 'compression', value: compressed ? `deflate (${compressed} of ${entries.length} entries)` : 'stored (np.savez)' },
+      ...objMeta,
     ],
     info: [], warnings,
   };
+  if (objects.length) {
+    model.objects = objects;
+    model.info.push({ label: 'Object arrays', value: `Python objects in pickled entries were read as data, nothing was run. ${objects.length.toLocaleString('en-US')} values in the Objects tab.` });
+  }
+  return model;
 }
 
 async function openSafetensors(source) {

@@ -5,7 +5,7 @@ const fs = require('fs');
 const { buildHtml } = require('./html');
 const { FileSource, BufferSource } = require('./core/source');
 const { openTensorFile } = require('./core/formats');
-const { sampleTensor } = require('./core/sample');
+const { sampleTensor, exactPercentiles, statsText } = require('./core/sample');
 const { validateWebviewMessage, publicModel, shapeText } = require('./core/protocol');
 const { readValues, sliceTensor, pageText, planExport, writeExport, exportName } = require('./core/values');
 const { readImage } = require('./core/image');
@@ -225,6 +225,7 @@ class TensorEditorProvider {
     let source = null;
     let seq = 0; // newest select wins; older samples are dropped
     let counted = false; // one success per opened tab, for the rating prompt
+    let lastStats = null; // { index, slice, result } of the stats on screen, for "Copy stats"
     const post = m => { if (!disposed) panel.webview.postMessage(m); };
     const isRaw = this.raw;
     let modelP, openMsP;
@@ -346,10 +347,29 @@ class TensorEditorProvider {
         try {
           const t = slice ? sliceTensor(model.tensors[msg.index], slice) : model.tensors[msg.index];
           const result = await sampleTensor(t, { sampleValues: settings().sampleValues });
-          if (my === seq) post({ type: 'sample', index: msg.index, slice, result });
+          if (my !== seq) return;
+          lastStats = { index: msg.index, slice, t, result };
+          post({ type: 'sample', index: msg.index, slice, result });
+          if (result.pct && result.pct.pending) {
+            // Exact percentiles read the whole tensor once more, after the stats are on screen.
+            let pct;
+            try {
+              pct = await exactPercentiles(t, { cancelled: () => my !== seq || disposed });
+            } catch (e) { pct = { error: e.message || String(e) }; }
+            if (!pct || my !== seq) return;
+            result.pct = { ...pct, complex: result.pct.complex, bigint: result.pct.bigint };
+            post({ type: 'percentiles', index: msg.index, slice, pct: result.pct });
+          }
         } catch (e) {
           if (my === seq) post({ type: 'sampleError', index: msg.index, slice, message: e.message || String(e) });
         }
+        return;
+      }
+      if (msg.type === 'copyStats') {
+        if (!lastStats || lastStats.index !== msg.index) { post({ type: 'copied', what: 'error', text: 'the stats are still being read. Try again in a moment.' }); return; }
+        const text = statsText(lastStats.t, lastStats.result, lastStats.slice);
+        await vscode.env.clipboard.writeText(text);
+        post({ type: 'copied', what: 'stats', text: 'stats and percentiles' });
         return;
       }
       if (msg.type === 'values') {

@@ -92,3 +92,11 @@ table.vals { border-collapse: collapse; font-family: var(--vscode-editor-font-fa
 .btn.primary { color: var(--vscode-button-foreground); background: var(--vscode-button-background); }
 .btn.primary:hover { background: var(--vscode-button-hoverBackground, var(--vscode-button-background)); }
 .title .btn { margin-left: 10px; }
+
+.stats.pct { margin-top: 8px; grid-template-columns: repeat(7, minmax(52px, 1fr)); }
+.pctbox .fv { overflow: hidden; text-overflow: ellipsis; }
+.pcthow.sampled { color: var(--vscode-editorWarning-foreground, var(--vscode-descriptionForeground)); }
+.objs .ot { width: 16%; font-family: var(--vscode-editor-font-family); color: var(--vscode-descriptionForeground); white-space: nowrap; }
+.objs tr.arr .mk { color: var(--vscode-textLink-foreground); }
+.objcap { padding: 0 12px; }
+.btn.link { margin-top: 4px; }

@@ -210,7 +210,7 @@ function applyBuild(obj, state) {
 /**
  * Decode a pickle. Returns { value, protocol, events, opCount, error }.
  * On a damaged file, value is undefined and error explains where it stopped; events read so far are kept.
- * opts.maxEvents caps the recorded events (the count keeps going).
+ * opts.maxEvents caps the recorded events (the count keeps going). opts.maxOps stops a pickle with more opcodes (0 = no cap).
  */
 function unpickle(bytes, opts = {}) {
   const maxEvents = opts.maxEvents || 20000;
@@ -249,6 +249,7 @@ function unpickle(bytes, opts = {}) {
     for (const op of iterOps(bytes, opts.start || 0)) {
       opCount++;
       pos = op.pos;
+      if (opts.maxOps && opCount > opts.maxOps) throw new PickleError(`The pickle has more than ${opts.maxOps.toLocaleString('en-US')} opcodes, the most this viewer decodes.`, pos);
       const a = op.arg;
       switch (op.name) {
         case 'PROTO': protocol = a; if (a > 5) throw new PickleError(`Pickle protocol ${a} is newer than 5, the highest this viewer reads.`, pos); break;

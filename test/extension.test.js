@@ -360,3 +360,44 @@ test('rating wiring: a file that opens counts once, a broken file blocks the ask
     assert.strictEqual(state().count, 1);
   } finally { fs.rmSync(dir, { recursive: true, force: true }); }
 });
+
+test('object arrays and percentiles: model objects, exact percentiles after the stats, Copy stats', async () => {
+  const provider = registered.editors[0].provider;
+  const OBJ = path.join(FIX, 'objects');
+  let f = fakePanel();
+  await provider.resolveCustomEditor(provider.openCustomDocument(vscodeMock.Uri.file(path.join(OBJ, 'dict_weights.npy'))), f.panel);
+  f.send({ type: 'ready' });
+  let model = await f.until(m => m.type === 'model');
+  assert.ok(model.objects.some(r => r.path === "['layers'][0]['w']" && model.tensors[r.tensor].name === "['layers'][0]['w']"));
+  f.send({ type: 'copyStats', index: 0 });
+  assert.match((await f.until(m => m.type === 'copied')).text, /still being read/);
+  f.send({ type: 'select', index: 0 });
+  const s = await f.until(m => m.type === 'sample');
+  assert.strictEqual(s.result.pct.values[3].value, 5.5);
+  f.sent.length = 0;
+  f.send({ type: 'copyStats', index: 0 });
+  await f.until(m => m.type === 'copied' && m.what === 'stats');
+  assert.match(clipboard, /^\['weights'\]\ndtype float32, shape \(3, 4\)/);
+  assert.match(clipboard, /\nmedian 5.5\n/);
+  f.dispose();
+  // A tensor bigger than the sample: stats first, then a "percentiles" message with exact values.
+  const conf = vscodeMock.workspace.getConfiguration;
+  vscodeMock.workspace.getConfiguration = () => ({ get: (k, d) => (k === 'sampleValues' ? 20000 : d) });
+  try {
+    f = fakePanel();
+    await provider.resolveCustomEditor(provider.openCustomDocument(vscodeMock.Uri.file(path.join(OBJ, 'normal_700x300_f4.npy'))), f.panel);
+    f.send({ type: 'ready' });
+    model = await f.until(m => m.type === 'model');
+    f.send({ type: 'select', index: 0 });
+    const first = await f.until(m => m.type === 'sample');
+    assert.strictEqual(first.result.exact, false);
+    assert.strictEqual(first.result.pct.pending, true);
+    const p = await f.until(m => m.type === 'percentiles');
+    assert.strictEqual(p.pct.exact, true);
+    assert.strictEqual(p.pct.values.length, 7);
+    f.send({ type: 'copyStats', index: 0 });
+    await f.until(m => m.type === 'copied' && m.what === 'stats');
+    assert.match(clipboard, /exact over all 209,996 finite values/);
+    f.dispose();
+  } finally { vscodeMock.workspace.getConfiguration = conf; }
+});

@@ -3,8 +3,11 @@
 // The sample is whole rows spread evenly over the tensor, so a 10 GB tensor costs about as
 // much as a 10 MB one.
 const { decodePlain, decodeQuant } = require('./dtypes');
+const { percentiles, memoryScan, tick } = require('./quantiles');
 
-const DEFAULTS = { sampleValues: 2000000, imageMaxBytes: 64 * 1024 * 1024, grid: 256, linePoints: 1000, bins: 64, imageMax: 512 };
+// exactPercentileMax: tensors up to this many values get exact percentiles from a second read of the
+// whole tensor, even when the stats above use a sample. Bigger ones get percentiles of the sample.
+const DEFAULTS = { sampleValues: 2000000, imageMaxBytes: 64 * 1024 * 1024, grid: 256, linePoints: 1000, bins: 64, imageMax: 512, exactPercentileMax: 20000000, chunkValues: 1 << 20 };
 
 function layoutOf(t) {
   const loc = t._loc;
@@ -191,11 +194,64 @@ async function sampleTensor(t, options = {}) {
   const plan = planPieces(t, L, opts, random);
   const pieces = await readPieces(t, L, plan);
   const { stats, hist } = computeStats(pieces, opts.bins);
+  const pct = await quickPercentiles(t, plan, pieces, random, opts);
   let view = null;
   if (isImage(t) && random && t.nbytes <= opts.imageMaxBytes) view = await image(t, opts);
   else if (t.shape.length >= 2 && L.cols > 1 && L.rows > 1 && L.cols <= opts.sampleValues) view = heatmap(pieces, L, opts);
   else if (t.numel > 1) view = linePlot(pieces, t.numel, opts);
-  return { stats, hist, view, how: plan.how, exact: plan.exact, ms: Date.now() - t0 };
+  return { stats, hist, view, how: plan.how, exact: plan.exact, pct, ms: Date.now() - t0 };
+}
+
+const isBigInt = loc => !loc.quant && (loc.kind === 'i64' || loc.kind === 'u64');
+const isComplex = loc => loc.kind === 'c64' || loc.kind === 'c128';
+
+/** Can exactPercentiles() read every value of this tensor? */
+function canReadAll(t, random, opts) { return random && t.numel <= opts.exactPercentileMax; }
+
+/**
+ * Percentiles that cost little next to the sample: exact when the sample is the whole tensor, a sampled
+ * estimate when the tensor is too big (or compressed) to read whole, else { pending: true } and the
+ * caller runs exactPercentiles() after the stats are on screen.
+ */
+async function quickPercentiles(t, plan, pieces, random, opts) {
+  const loc = t._loc;
+  const base = { complex: isComplex(loc), bigint: isBigInt(loc) };
+  if (plan.exact && !isBigInt(loc)) {
+    const r = await percentiles(memoryScan(pieces.map(p => ({ f: p.data }))), 'float');
+    return { ...base, ...r, exact: true };
+  }
+  if (plan.exact || canReadAll(t, random, opts)) {
+    if (t.numel <= opts.sampleValues) return exactPercentiles(t, opts); // small: no need to wait for a second message
+    return { ...base, pending: true, total: t.numel };
+  }
+  const r = await percentiles(memoryScan(pieces.map(p => ({ f: p.data }))), 'float');
+  return { ...base, ...r, exact: false, sampled: true };
+}
+
+/**
+ * Exact percentiles over every value of a tensor, read in chunks of about 1M values.
+ * int64 and uint64 are read as raw bytes so the results stay exact past 2^53.
+ * opts.cancelled() stops early (returns null).
+ */
+async function exactPercentiles(t, options = {}) {
+  const opts = { ...DEFAULTS, ...options };
+  if (!t.readable || !t._loc) throw new Error(t.note || 'This tensor cannot be read.');
+  const loc = t._loc;
+  const L = layoutOf(t);
+  const big = isBigInt(loc);
+  const per = Math.max(L.block, Math.floor(opts.chunkValues / L.block) * L.block);
+  const scan = async onChunk => {
+    for (let s = 0; s < t.numel; s += per) {
+      if (opts.cancelled && opts.cancelled()) return;
+      const v = Math.min(per, t.numel - s);
+      const bytes = await loc.source.read(loc.dataOffset + (s / L.block) * L.unitBytes, (v / L.block) * L.unitBytes);
+      onChunk(big ? { raw: bytes, count: v, signed: loc.kind === 'i64', littleEndian: loc.littleEndian } : { f: decodeRange(loc, bytes, v) });
+      await tick();
+    }
+  };
+  const r = await percentiles(scan, big ? loc.kind : 'float', { cancelled: opts.cancelled });
+  if (!r) return null;
+  return { complex: isComplex(loc), bigint: big, ...r, exact: true };
 }
 
 /** Python tuple for a shape: (), (5,), (2, 3). */
@@ -205,4 +261,35 @@ function shapeAsPython(shape) {
   return `(${shape.join(', ')})`;
 }
 
-module.exports = { sampleTensor, planPieces, layoutOf, computeStats, shapeAsPython, DEFAULTS };
+/** One line that says how the percentiles were found. */
+function percentileNote(pct) {
+  if (!pct) return '';
+  if (pct.pending) return `Percentiles: reading all ${pct.total.toLocaleString('en-US')} values for exact results...`;
+  if (pct.error) return `Percentiles: ${pct.error}`;
+  if (!pct.n) return 'Percentiles: no finite values.';
+  const what = pct.complex ? ' of the magnitude |z|' : '';
+  const how = pct.exact ? `exact over all ${pct.n.toLocaleString('en-US')} finite values` : `sampled from ${pct.n.toLocaleString('en-US')} values (estimate)`;
+  return `Percentiles${what}: ${how}, NaN and Inf left out, linear interpolation as in numpy.percentile.${pct.bigint && pct.exact ? ' 64-bit integers are exact.' : ''}`;
+}
+
+/** Stats and percentiles as plain text, for "Copy stats". */
+function statsText(t, r, slice) {
+  const st = r.stats;
+  const g = v => (v === null || v === undefined ? '-' : String(v));
+  const lines = [
+    `${t.name}${slice && slice.length ? ' [' + slice.concat([':', ':']).join(', ') + ']' : ''}`,
+    `dtype ${t.dtype}, shape ${shapeAsPython(t.shape)}, ${t.numel} values`,
+    `min ${g(st.min)}`, `max ${g(st.max)}`, `mean ${g(st.mean)}`, `std ${g(st.std)}`,
+    `nan ${st.nan}`, `+inf ${st.posinf}`, `-inf ${st.neginf}`, `zeros ${st.zeros}`,
+    `${r.exact ? 'stats: exact, from' : 'stats: sample of'} ${r.how}`,
+  ];
+  const pct = r.pct;
+  if (pct && pct.values && pct.values.length) {
+    for (const v of pct.values) lines.push(`${v.label} ${v.text}`);
+  }
+  const note = percentileNote(pct);
+  if (note) lines.push(note);
+  return lines.join('\n') + '\n';
+}
+
+module.exports = { sampleTensor, exactPercentiles, statsText, percentileNote, planPieces, layoutOf, computeStats, shapeAsPython, DEFAULTS };

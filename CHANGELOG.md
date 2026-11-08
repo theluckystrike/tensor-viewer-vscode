@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.5.0 (2026-11-08)
+
+- Object arrays open: dicts, lists, strings and other Python values saved with `np.save(..., allow_pickle=True)`, in `.npy` files and `.npz` entries. Each array inside is a tensor named by its Python path (`['weights']`, `[0]`, `['layers'][2]['bias']`) with stats, heatmap and values. Other values show in a new Objects tab as a read-only tree. Before, these files were listed and refused.
+- The pickle is read as data and never run. numpy's own rebuild names and plain containers are allowed; any other name is rated, and `os.system` or `eval` payloads show a red warning. Deep nesting, cycles, shared values, huge declared shapes and cut-off files are capped and give a message.
+- Median and percentiles (p1, p5, p25, p75, p95, p99) in the stats panel. Exact for tensors up to 20 million values, NaN and Inf left out, linear interpolation as in `numpy.percentile`. Bigger tensors get a sampled estimate that says how many values it used. int64 and uint64 stay exact; complex arrays use the magnitude.
+- "Copy stats" button: copies the stats and percentiles as text.
+
 ## 0.4.0 (2026-11-08)
 
 - Opens PyTorch files: `.pt`, `.pth`, `.ckpt` and `pytorch_model*.bin`. Every tensor is listed by its full name with dtype and shape, and a click shows stats, a heatmap and the values. This covers state dicts, training checkpoints with optimizer state, Lightning checkpoints, whole saved models, TorchScript files and the format from before PyTorch 1.6. Epoch, step and loss show in the header.

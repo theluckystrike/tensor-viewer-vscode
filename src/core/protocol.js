@@ -50,6 +50,9 @@ function validateWebviewMessage(m, tensorCount, tensors) {
       if (!s) return { ok: false, error: 'bad slice' };
       return { ok: true, msg: { type: 'export', index: m.index, format: m.format, slice: s } };
     }
+    case 'copyStats':
+      if (!idx(m.index)) return { ok: false, error: 'bad index' };
+      return { ok: true, msg: { type: 'copyStats', index: m.index } };
     case 'copy':
       if (!idx(m.index)) return { ok: false, error: 'bad index' };
       if (!COPY_WHAT.has(m.what)) return { ok: false, error: 'bad copy kind' };
@@ -75,6 +78,7 @@ function publicModel(model, fileName) {
     type: 'model', version: PROTOCOL_VERSION, fileName, format: model.format, fileSize: model.fileSize,
     totalParams: model.totalParams, info: model.info, metadata: model.metadata, warnings: model.warnings,
     tensors: model.tensors.map(t => ({ name: t.name, dtype: t.dtype, rawDtype: t.rawDtype, shape: t.shape, numel: t.numel, nbytes: t.nbytes, offset: t.offset, readable: !!t.readable, note: t.note, image: imageInfo(t) })),
+    objects: (model.objects || []).map(r => ({ path: r.path, depth: r.depth, type: r.type, value: r.value, tensor: r.tensor })),
   };
 }
 

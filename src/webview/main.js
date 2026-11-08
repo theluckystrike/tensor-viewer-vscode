@@ -7,7 +7,7 @@ const { displayText, displayComplex, exactText, complexText, PRECISIONS } = requ
   const vscode = acquireVsCodeApi();
   const app = document.getElementById('app');
   const saved = vscode.getState() || {};
-  const S = { model: null, filter: '', sort: { key: null, dir: 1 }, selected: -1, limit: 500, tab: 'tensors', sample: null, sampleFor: -1, mdFilter: '', error: null,
+  const S = { model: null, filter: '', sort: { key: null, dir: 1 }, selected: -1, limit: 500, tab: 'tensors', sample: null, sampleFor: -1, mdFilter: '', objFilter: '', error: null,
     slices: {}, sliceStats: false, vpage: { row: 0, col: 0 }, vals: null, valsErr: null, prec: PRECISIONS.includes(saved.prec) ? saved.prec : 'auto',
     img: {}, imgRes: null, errorAction: null };
   const PAGE_ROWS = 32;
@@ -124,6 +124,10 @@ const { displayText, displayComplex, exactText, complexText, PRECISIONS } = requ
       const wrap = document.getElementById('tablewrap');
       const scroll = wrap ? wrap.scrollTop : 0;
       S.model = m; S.error = null; S.errorAction = null;
+      if (!m.objects) m.objects = [];
+      // A file of Python objects with no numeric arrays opens on the Objects tab.
+      if (!prev && m.objects.length && !m.tensors.some(t => t.readable)) S.tab = 'objects';
+      if (S.tab === 'objects' && !m.objects.length) S.tab = 'tensors';
       S.selected = -1; S.slices = {}; S.img = {}; S.imgRes = null; S.sample = null; S.sampleFor = -1; S.vals = null; S.valsErr = null;
       if (m.reloaded) S.reloadedAt = new Date().toLocaleTimeString();
       const again = keepName !== null ? m.tensors.findIndex(t => t.name === keepName) : -1;
@@ -134,6 +138,11 @@ const { displayText, displayComplex, exactText, complexText, PRECISIONS } = requ
       if (w2 && prev) w2.scrollTop = scroll;
       if (first >= 0) select(first);
       if (m.reloaded) flash(`The file changed on disk. Reloaded at ${S.reloadedAt}.`);
+    } else if (m.type === 'percentiles') {
+      if (m.index !== S.selected || !sameSlice(m.slice || null, statsSlice()) || !S.sample || S.sample.type !== 'sample') return;
+      S.sample.result.pct = m.pct;
+      const box = document.getElementById('pctbox');
+      if (box) box.replaceChildren(...pctView(m.pct));
     } else if (m.type === 'sample' || m.type === 'sampleError') {
       if (m.index !== S.selected || !sameSlice(m.slice || null, statsSlice())) return;
       S.sample = m; S.sampleFor = m.index;
@@ -151,7 +160,7 @@ const { displayText, displayComplex, exactText, complexText, PRECISIONS } = requ
     } else if (m.type === 'error') {
       S.error = m.message; S.errorAction = m.action === 'rawLayout' ? 'rawLayout' : null; render();
     } else if (m.type === 'copied') {
-      flash(`Copied ${m.text.length > 60 ? m.text.slice(0, 60) + '...' : m.text}`);
+      flash(m.what === 'error' ? `Not copied: ${m.text}` : `Copied ${m.text.length > 60 ? m.text.slice(0, 60) + '...' : m.text}`);
     }
   });
 
@@ -220,11 +229,12 @@ const { displayText, displayComplex, exactText, complexText, PRECISIONS } = requ
     const warns = m.warnings.length ? el('div', { class: 'warn' }, m.warnings.map(w => el('div', { class: /^Risky:/.test(w) ? 'risky' : null, text: w }))) : null;
     const tabs = el('div', { class: 'tabs', role: 'tablist' }, [
       tabBtn('tensors', `Tensors (${nf.format(m.tensors.length)})`),
+      m.objects.length ? tabBtn('objects', `Objects (${nf.format(m.objects.length)})`) : null,
       tabBtn('metadata', `Metadata (${nf.format(m.metadata.length)})`),
-    ]);
+    ].filter(Boolean));
     const body = S.tab === 'tensors'
       ? el('div', { class: 'split' }, [el('section', { class: 'list' }, [listControls(), el('div', { class: 'tablewrap', id: 'tablewrap' }, [tensorTable()])]), el('section', { class: 'detail', id: 'detail' })])
-      : metadataView();
+      : S.tab === 'objects' ? objectsView() : metadataView();
     app.replaceChildren(...[head, info, warns, tabs, body].filter(Boolean));
     if (S.tab === 'tensors') renderDetail();
   }
@@ -302,6 +312,32 @@ const { displayText, displayComplex, exactText, complexText, PRECISIONS } = requ
     input.addEventListener('input', () => { S.mdFilter = input.value; draw(); });
     draw();
     return el('section', { class: 'meta' }, [el('div', { class: 'controls' }, [input]), wrap]);
+  }
+
+  // Python objects from pickled object arrays: a read-only tree, one row per value. Rows that are
+  // numeric arrays open that tensor in the Tensors tab.
+  function objectsView() {
+    const m = S.model;
+    const input = el('input', { type: 'search', class: 'search', placeholder: 'Filter paths, types and values', value: S.objFilter, 'aria-label': 'Filter objects' });
+    const wrap = el('div', { class: 'mdwrap' });
+    const draw = () => {
+      const q = S.objFilter.toLowerCase();
+      const rows = m.objects.filter(x => !q || x.path.toLowerCase().includes(q) || x.type.toLowerCase().includes(q) || String(x.value).toLowerCase().includes(q));
+      const shown = rows.slice(0, 3000);
+      wrap.replaceChildren(rows.length ? el('table', { class: 'md objs' }, [el('tbody', null, shown.map(x => {
+        const open = x.tensor !== undefined && m.tensors[x.tensor];
+        const name = el('td', { class: 'mk ok', title: x.path, text: x.path });
+        name.style.paddingLeft = (8 + Math.min(x.depth, 20) * 12) + 'px';
+        const value = el('td', { class: 'mv' }, [el('div', { class: 'mvt', text: x.value })]);
+        if (open) value.append(el('button', { class: 'btn link', text: 'Open array', title: 'Show stats, heatmap and values in the Tensors tab', onclick: () => { S.tab = 'tensors'; render(); select(x.tensor); } }));
+        return el('tr', { class: open ? 'arr' : null }, [name, el('td', { class: 'ot', text: x.type }), value]);
+      }))]) : el('p', { class: 'empty', text: 'No values match.' }));
+      if (rows.length > shown.length) wrap.append(el('p', { class: 'cap', text: `${nf.format(rows.length - shown.length)} more rows. Use the filter to find them.` }));
+    };
+    input.addEventListener('input', () => { S.objFilter = input.value; draw(); });
+    draw();
+    const head = el('p', { class: 'cap objcap', text: 'Read from the pickle as data. No Python code was run. Numeric arrays are listed in the Tensors tab too.' });
+    return el('section', { class: 'meta' }, [el('div', { class: 'controls' }, [input]), head, wrap]);
   }
 
   // ---------- detail ----------
@@ -530,13 +566,37 @@ const { displayText, displayComplex, exactText, complexText, PRECISIONS } = requ
       fact('NaN', nf.format(st.nan)), fact('+Inf', nf.format(st.posinf)), fact('-Inf', nf.format(st.neginf)), fact('Zeros', nf.format(st.zeros)),
     ]));
     const sl = statsSlice();
+    out.push(el('div', { id: 'pctbox', class: 'pctbox' }, pctView(r.pct)));
     out.push(el('p', { class: 'how', text: (sl ? `Slice ${sliceText(sl)}. ` : '') + (r.exact ? 'Exact, from ' : 'Sample of ') + r.how + `. Read in ${r.ms} ms.` }));
+    out.push(el('div', { class: 'btns' }, [el('button', { class: 'btn', id: 'copy-stats', text: 'Copy stats', title: 'Copy min, max, mean, std, counts and the percentiles as text, with every digit', onclick: () => vscode.postMessage({ type: 'copyStats', index: S.selected }) })]));
     const width = Math.max(240, Math.min(640, (document.getElementById('detail').clientWidth || 480) - 44));
     if (r.view && r.view.kind === 'heatmap') out.push(el('h3', { text: 'Heatmap' }), heatmap(r.view, width));
     if (r.view && r.view.kind === 'line') out.push(el('h3', { text: 'Values by index' }), linePlot(r.view, width));
     if (r.view && r.view.kind === 'image' && !t.image) out.push(el('h3', { text: 'Image' }), imageView(r.view, width));
     if (r.hist) out.push(el('h3', { class: 'hist-h', text: 'Histogram' }), histogram(r.hist, width));
     return out;
+  }
+
+  // Percentiles: p1, p5, p25, median, p75, p95, p99, with a line that says exact or sampled.
+  function pctView(p) {
+    if (!p) return [];
+    const label = { p1: 'P1', p5: 'P5', p25: 'P25', median: 'Median', p75: 'P75', p95: 'P95', p99: 'P99' };
+    const out = [];
+    if (p.values && p.values.length) {
+      out.push(el('div', { class: 'stats pct' }, p.values.map(v => fact(label[v.label] || v.label, p.bigint ? v.text : num(v.value), v.text))));
+    } else if (p.pending) {
+      out.push(el('div', { class: 'stats pct' }, ['P1', 'P5', 'P25', 'Median', 'P75', 'P95', 'P99'].map(k => fact(k, '...'))));
+    }
+    out.push(el('p', { class: 'how pcthow' + (p.exact ? '' : p.pending ? ' pending' : ' sampled'), text: pctText(p) }));
+    return out;
+  }
+  function pctText(p) {
+    if (p.pending) return `Percentiles: reading all ${nf.format(p.total)} values for exact results...`;
+    if (p.error) return `Percentiles: ${p.error}`;
+    if (!p.n) return 'Percentiles: no finite values.';
+    const what = p.complex ? ' of the magnitude |z|' : '';
+    const how = p.exact ? `exact over all ${nf.format(p.n)} finite values` : `sampled from ${nf.format(p.n)} values (estimate)`;
+    return `Percentiles${what}: ${how}. NaN and Inf left out. Linear interpolation, as in numpy.percentile.` + (p.bigint && p.exact ? ' 64-bit integers are exact.' : '');
   }
 
   function histogram(h, W) {
