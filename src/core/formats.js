@@ -63,7 +63,11 @@ async function openNpy(source) {
         { key: 'data offset', value: String(h.dataOffset) },
         ...r.metadata,
       ],
-      info: [{ label: 'Object array', value: `${arrays.toLocaleString('en-US')} numeric arrays and ${r.rows.length.toLocaleString('en-US')} values inside. The pickle was read as data, nothing was run.` }],
+      info: [
+        { label: 'Arrays inside', value: arrays.toLocaleString('en-US') },
+        { label: 'Python values', value: `${r.rows.length.toLocaleString('en-US')} (Objects tab)` },
+        { label: 'Pickle', value: 'read as data, not run' },
+      ],
       warnings: r.warnings,
     };
   }
@@ -122,7 +126,7 @@ async function openNpz(source) {
   };
   if (objects.length) {
     model.objects = objects;
-    model.info.push({ label: 'Object arrays', value: `Python objects in pickled entries were read as data, nothing was run. ${objects.length.toLocaleString('en-US')} values in the Objects tab.` });
+    model.info.push({ label: 'Python values', value: `${objects.length.toLocaleString('en-US')} (Objects tab)` }, { label: 'Pickle', value: 'read as data, not run' });
   }
   return model;
 }
