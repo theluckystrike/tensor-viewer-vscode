@@ -567,8 +567,8 @@ const { displayText, displayComplex, exactText, complexText, PRECISIONS } = requ
     ]));
     const sl = statsSlice();
     out.push(el('div', { id: 'pctbox', class: 'pctbox' }, pctView(r.pct)));
-    out.push(el('p', { class: 'how', text: (sl ? `Slice ${sliceText(sl)}. ` : '') + (r.exact ? 'Exact, from ' : 'Sample of ') + r.how + `. Read in ${r.ms} ms.` }));
     out.push(el('div', { class: 'btns' }, [el('button', { class: 'btn', id: 'copy-stats', text: 'Copy stats', title: 'Copy min, max, mean, std, counts and the percentiles as text, with every digit', onclick: () => vscode.postMessage({ type: 'copyStats', index: S.selected }) })]));
+    out.push(el('p', { class: 'how', text: (sl ? `Slice ${sliceText(sl)}. ` : '') + (r.exact ? 'Exact, from ' : 'Sample of ') + r.how + `. Read in ${r.ms} ms.` }));
     const width = Math.max(240, Math.min(640, (document.getElementById('detail').clientWidth || 480) - 44));
     if (r.view && r.view.kind === 'heatmap') out.push(el('h3', { text: 'Heatmap' }), heatmap(r.view, width));
     if (r.view && r.view.kind === 'line') out.push(el('h3', { text: 'Values by index' }), linePlot(r.view, width));
