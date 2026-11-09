@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.6.0 (2026-11-09)
+
+Everything that was free stays free. New, with the optional Zovo Pro (USD 19 once for every Zovo viewer; each tool has 3 free tries on your computer):
+
+- Compare two checkpoints: every tensor of two files, value by value. Max and mean absolute difference, RMSE, relative L2 error, cosine similarity, the count of values that differ and where the largest one is. Tensors in one file only, shape and type changes are listed. Works across formats, on quantized GGUF tensors and on Fortran-order arrays. Names also match without a `module.` or `_orig_mod.` prefix.
+- Scan all tensors: every value of every tensor, no sampling. Flags NaN, Inf, all-zero and constant tensors and float values of 10,000 or more, with exact min, max, mean, std and L2 norm.
+- Both open a report you can filter and save as CSV, Markdown or JSON, and both can be cancelled.
+- "Compare with..." and "Scan all tensors" buttons at the top of the viewer, Command Palette commands, and Explorer menu entries. `tensorViewer.showProFeatures: false` hides them.
+
+Also:
+
+- The rating question comes after 2 files that opened without an error in 2 sessions at least 4 hours apart (was 3 files on 2 calendar days). It still never shows after an error, at most twice in all, and the setting turns it off.
+- "Rate it" and the Rate link in the footer open the review page of the store your editor installs from: the Visual Studio Marketplace in VS Code, Open VSX in Cursor, Windsurf, VSCodium and other editors that use Open VSX.
+- Rate is now the first footer link.
+
 ## 0.4.1 (2026-11-09)
 
 - PayPal is now in the footer links and in the README "Support Zovo" section, next to GitHub Sponsors. Both are optional; the viewer works the same without them.

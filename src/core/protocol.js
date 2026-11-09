@@ -20,6 +20,9 @@ function validateWebviewMessage(m, tensorCount, tensors) {
   switch (m.type) {
     case 'ready': return { ok: true, msg: { type: 'ready' } };
     case 'rawLayout': return { ok: true, msg: { type: 'rawLayout' } };
+    case 'pro': // Zovo Pro tool buttons in the header: the host checks the license or a free try before it runs
+      if (m.action !== 'compare' && m.action !== 'scan') return { ok: false, error: 'bad action' };
+      return { ok: true, msg: { type: 'pro', action: m.action } };
     case 'image': {
       if (!idx(m.index)) return { ok: false, error: 'bad index' };
       if (!LAYOUTS.has(m.layout)) return { ok: false, error: 'bad layout' };

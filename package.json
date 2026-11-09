@@ -2,7 +2,7 @@
   "name": "tensor-viewer",
   "displayName": "NPZ Viewer & NPY Viewer, PyTorch, GGUF & Safetensors (NumPy Viewer)",
   "description": "NPZ and NPY viewer for NumPy arrays, plus PyTorch .pt, .pth and .ckpt checkpoints, GGUF and Safetensors models: names, shape, dtype, stats, heatmaps and images. Reloads when the file changes. Reads pickle without running it. Offline, no Python.",
-  "version": "0.4.1",
+  "version": "0.6.0",
   "publisher": "zovo",
   "license": "MIT",
   "icon": "icon.png",
@@ -52,7 +52,9 @@
     "torch"
   ],
   "main": "./dist/extension.js",
-  "activationEvents": [],
+  "activationEvents": [
+    "onUri"
+  ],
   "capabilities": {
     "untrustedWorkspaces": {
       "supported": true
@@ -135,6 +137,41 @@
         "command": "tensorViewer.moreViewers",
         "title": "More free viewers",
         "category": "Tensor Viewer"
+      },
+      {
+        "command": "tensorViewer.compareFiles",
+        "title": "Compare Two Tensor Files (Checkpoint Diff)",
+        "category": "NumPy Viewer Pro"
+      },
+      {
+        "command": "tensorViewer.scanTensors",
+        "title": "Scan All Tensors for NaN, Inf and Zeros",
+        "category": "NumPy Viewer Pro"
+      },
+      {
+        "command": "tensorViewer.getPro",
+        "title": "Get Zovo Pro (USD 19 once, all Zovo viewers)",
+        "category": "NumPy Viewer"
+      },
+      {
+        "command": "tensorViewer.unlockWithSponsors",
+        "title": "Unlock Zovo Pro with GitHub Sponsors",
+        "category": "NumPy Viewer"
+      },
+      {
+        "command": "tensorViewer.payWithPayPal",
+        "title": "Pay for Zovo Pro with PayPal (USD 19)",
+        "category": "NumPy Viewer"
+      },
+      {
+        "command": "tensorViewer.enterLicenseKey",
+        "title": "Enter Zovo Pro License Key",
+        "category": "NumPy Viewer"
+      },
+      {
+        "command": "tensorViewer.removeLicense",
+        "title": "Remove Zovo Pro from This Editor",
+        "category": "NumPy Viewer"
       }
     ],
     "configuration": {
@@ -161,12 +198,17 @@
         "tensorViewer.askForRating": {
           "type": "boolean",
           "default": true,
-          "description": "Ask for a Marketplace rating after 3 files opened without an error on 2 different days. \"Later\" asks one more time after 7 days, \"No thanks\" never asks again. It never asks after an error or more than 2 times. Nothing is sent anywhere."
+          "description": "Ask for a rating after 2 files opened without an error in 2 sessions at least 4 hours apart. \"Rate it\" opens the Marketplace review page in VS Code and the Open VSX one in Cursor, Windsurf and VSCodium. \"Later\" asks one more time after 7 days, \"No thanks\" never asks again. It never asks after an error or more than 2 times. Nothing is sent anywhere."
         },
         "tensorViewer.showSupportLinks": {
           "type": "boolean",
           "default": true,
           "description": "Show the small Sponsor and More free viewers links at the bottom of the viewer. The change shows in files you open next. Nothing is sent anywhere."
+        },
+        "tensorViewer.showProFeatures": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show the Zovo Pro tools (the Compare with... and Scan all tensors buttons with their PRO badge, and the Pro commands). Turn it off to see only the free viewer. A Zovo Pro license always shows them."
         }
       }
     },
@@ -216,6 +258,16 @@
           "command": "tensorViewer.openRaw",
           "when": "!explorerResourceIsFolder && resourceExtname =~ /^\\.(bin|raw|dat|data|f16|f32|f64|i8|u8|i16|u16|i32|u32|i64|u64|img|out)$/i",
           "group": "navigation@90"
+        },
+        {
+          "command": "tensorViewer.compareFiles",
+          "when": "listMultiSelection && !explorerResourceIsFolder && resourceExtname =~ /^\\.(npy|npz|safetensors|gguf|pt|pth|ckpt|bin)$/i && (config.tensorViewer.showProFeatures || tensorViewer.proLicensed)",
+          "group": "3_compare@90"
+        },
+        {
+          "command": "tensorViewer.scanTensors",
+          "when": "!listMultiSelection && !explorerResourceIsFolder && resourceExtname =~ /^\\.(npy|npz|safetensors|gguf|pt|pth|ckpt|bin)$/i && (config.tensorViewer.showProFeatures || tensorViewer.proLicensed)",
+          "group": "navigation@91"
         }
       ],
       "editor/title/context": [
@@ -223,6 +275,36 @@
           "command": "tensorViewer.openRaw",
           "when": "resourceExtname =~ /^\\.(bin|raw|dat|data|f16|f32|f64|i8|u8|i16|u16|i32|u32|i64|u64|img|out)$/i",
           "group": "3_open@90"
+        }
+      ],
+      "commandPalette": [
+        {
+          "command": "tensorViewer.compareFiles",
+          "when": "config.tensorViewer.showProFeatures || tensorViewer.proLicensed"
+        },
+        {
+          "command": "tensorViewer.scanTensors",
+          "when": "config.tensorViewer.showProFeatures || tensorViewer.proLicensed"
+        },
+        {
+          "command": "tensorViewer.getPro",
+          "when": "config.tensorViewer.showProFeatures || tensorViewer.proLicensed"
+        },
+        {
+          "command": "tensorViewer.unlockWithSponsors",
+          "when": "config.tensorViewer.showProFeatures || tensorViewer.proLicensed"
+        },
+        {
+          "command": "tensorViewer.payWithPayPal",
+          "when": "config.tensorViewer.showProFeatures || tensorViewer.proLicensed"
+        },
+        {
+          "command": "tensorViewer.enterLicenseKey",
+          "when": "config.tensorViewer.showProFeatures || tensorViewer.proLicensed"
+        },
+        {
+          "command": "tensorViewer.removeLicense",
+          "when": "tensorViewer.proLicensed"
         }
       ]
     }

@@ -92,3 +92,7 @@ table.vals { border-collapse: collapse; font-family: var(--vscode-editor-font-fa
 .btn.primary { color: var(--vscode-button-foreground); background: var(--vscode-button-background); }
 .btn.primary:hover { background: var(--vscode-button-hoverBackground, var(--vscode-button-background)); }
 .title .btn { margin-left: 10px; }
+/* Zovo Pro tool buttons (compare, scan) in the header */
+.probtns { display: inline-flex; gap: 6px; margin-left: auto; }
+.title .probtns .btn { margin-left: 0; }
+.probadge { font-size: 9px; letter-spacing: .05em; margin-left: 6px; padding: 0 4px; border-radius: 3px; border: 1px solid currentColor; opacity: .75; }

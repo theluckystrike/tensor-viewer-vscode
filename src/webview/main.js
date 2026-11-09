@@ -124,6 +124,7 @@ const { displayText, displayComplex, exactText, complexText, PRECISIONS } = requ
       const wrap = document.getElementById('tablewrap');
       const scroll = wrap ? wrap.scrollTop : 0;
       S.model = m; S.error = null; S.errorAction = null;
+      if (m.pro) S.pro = m.pro;
       S.selected = -1; S.slices = {}; S.img = {}; S.imgRes = null; S.sample = null; S.sampleFor = -1; S.vals = null; S.valsErr = null;
       if (m.reloaded) S.reloadedAt = new Date().toLocaleTimeString();
       const again = keepName !== null ? m.tensors.findIndex(t => t.name === keepName) : -1;
@@ -142,6 +143,10 @@ const { displayText, displayComplex, exactText, complexText, PRECISIONS } = requ
       if (m.index !== S.selected || !sameSlice(m.slice, curSlice()) || m.row !== S.vpage.row || m.col !== S.vpage.col) return;
       if (m.type === 'values') { S.vals = m; S.valsErr = null; } else { S.vals = null; S.valsErr = m.message; }
       renderValues();
+    } else if (m.type === 'pro') {
+      S.pro = { show: !!m.show, licensed: !!m.licensed, trials: m.trials || {} };
+      const box = document.getElementById('pro-btns');
+      if (box) box.replaceWith(proButtons());
     } else if (m.type === 'exported') {
       flash(m.text);
     } else if (m.type === 'image' || m.type === 'imageError') {
@@ -207,7 +212,8 @@ const { displayText, displayComplex, exactText, complexText, PRECISIONS } = requ
     const readableBytes = m.tensors.reduce((a, t) => a + (t.nbytes || 0), 0);
     const head = el('header', { class: 'head' }, [
       el('div', { class: 'title' }, [el('span', { class: 'fname', text: m.fileName }), el('span', { class: 'badge', text: m.format === 'raw' ? 'RAW ARRAY' : m.format.toUpperCase() }),
-        m.format === 'raw' ? el('button', { class: 'btn', id: 'raw-layout', text: 'Change type and shape...', onclick: () => vscode.postMessage({ type: 'rawLayout' }) }) : null]),
+        m.format === 'raw' ? el('button', { class: 'btn', id: 'raw-layout', text: 'Change type and shape...', onclick: () => vscode.postMessage({ type: 'rawLayout' }) }) : null,
+        proButtons()]),
       el('div', { class: 'facts' }, [
         fact('Parameters', compact(m.totalParams), nf.format(m.totalParams)),
         fact('Tensors', nf.format(m.tensors.length)),
@@ -227,6 +233,21 @@ const { displayText, displayComplex, exactText, complexText, PRECISIONS } = requ
       : metadataView();
     app.replaceChildren(...[head, info, warns, tabs, body].filter(Boolean));
     if (S.tab === 'tensors') renderDetail();
+  }
+  // Zovo Pro tools (compare two files, scan all tensors). Hidden by the setting tensorViewer.showProFeatures.
+  // A click asks the host, which checks the license or a free try; nothing about Pro shows on its own.
+  function proButtons() {
+    const p = S.pro;
+    const box = el('span', { class: 'probtns', id: 'pro-btns' });
+    if (!p || !p.show) return box;
+    const tries = n => (p.licensed ? '' : n > 0 ? ` (Zovo Pro: ${n} free ${n === 1 ? 'try' : 'tries'} left)` : ' (Zovo Pro)');
+    const btn = (id, action, label, title, n) => el('button', { class: 'btn pro', id, title: title + tries(n), onclick: () => vscode.postMessage({ type: 'pro', action }) },
+      [label, p.licensed ? null : el('span', { class: 'probadge', text: 'PRO' })]);
+    const t = p.trials || {};
+    box.append(
+      btn('pro-compare', 'compare', 'Compare with...', 'Compare every tensor of this file with another file: max and mean difference, RMSE, cosine', t.compare),
+      btn('pro-scan', 'scan', 'Scan all tensors', 'Read every value of every tensor and flag NaN, Inf, all-zero and constant tensors', t.scan));
+    return box;
   }
   function fact(label, value, title) { return el('div', { class: 'fact', title }, [el('span', { class: 'fl', text: label }), el('span', { class: 'fv', text: value })]); }
   function tabBtn(id, label) {

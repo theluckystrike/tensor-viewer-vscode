@@ -5,6 +5,12 @@
 
 Tensor Viewer is an NPZ and NPY viewer for NumPy arrays that also opens PyTorch `.pt`, `.pth` and `.ckpt` checkpoints and `.gguf` and `.safetensors` model files. It shows every tensor's name, dtype and shape, plus stats, a heatmap and the values, without Python.
 
+New in 0.6.0: two optional Pro tools for checkpoints, each with 3 free tries. Everything that was free stays free.
+
+- Compare two checkpoints: pick two files (two training steps, a model before and after conversion, or fp16 against a quantized GGUF) and get, for every tensor, the max and mean absolute difference, RMSE, relative L2 error, cosine similarity, how many values differ and where the largest change is. Tensors that exist in one file only or changed shape are listed too. Names match exactly, or without a `module.` or `_orig_mod.` prefix.
+- Scan all tensors: reads every value of every tensor (no sampling) and flags NaN, Inf, all-zero and constant tensors and float values of 10,000 or more, with exact min, max, mean, std and L2 norm per tensor.
+- Both open a report you can filter and save as CSV, Markdown or JSON. Start them with the "Compare with..." and "Scan all tensors" buttons at the top of the viewer, the Command Palette, or the Explorer menu (select two files for the compare).
+
 New in 0.4.0:
 
 - PyTorch files: `.pt`, `.pth`, `.ckpt` and `pytorch_model.bin` open with every tensor listed by its full name, such as `model_state_dict.fc.weight` or `optimizer_state_dict.state.0.exp_avg`. Click one for stats, a heatmap and the values. State dicts, full training checkpoints, Lightning `.ckpt` files, whole saved models, TorchScript files and the old format from before PyTorch 1.6 all work. Epoch, step, loss and hyperparameters show in the header and the Metadata tab.
@@ -25,7 +31,7 @@ New in 0.3.0:
 - It opens big checkpoints in well under a second and shows the real numbers. Only the header is read at first, and a click on a tensor reads that tensor's bytes by offset. Our test opens a 10.7 GB safetensors file in under 1 s. The Values table pages through any tensor, one 2-D slice at a time, and Save writes a tensor or a slice to .npy or CSV.
 - It reads the formats local LLM users actually have. GGUF metadata (architecture, context length, file type, tokenizer, chat template) sits next to the quant type of each tensor. Q8_0, Q4_0, Q4_1, Q5_0, Q5_1, Q4_K, Q5_K and Q6_K weights are decoded for stats and heatmaps.
 - It draws arrays as pictures and reads raw binary dumps (see above), which the other NumPy viewers in the Marketplace don't do together.
-- It's safe to open files you downloaded. Nothing in the file is ever run. PyTorch pickles are decoded as data, pickled object arrays in `.npy` and `.npz` are listed and refused, and the viewer makes no network calls at all.
+- It's safe to open files you downloaded. Nothing in the file is ever run. PyTorch pickles are decoded as data, pickled object arrays in `.npy` and `.npz` are listed and refused, and the viewer makes no network calls (the one exception is the optional Zovo Pro unlock, and only when you click it).
 
 ## Quick start
 
@@ -117,19 +123,38 @@ Deflated `.npz` entries can't be read at an offset. For those, the header comes 
 | `tensorViewer.sampleValues` | 2,000,000 | Most values read from one tensor for stats and plots |
 | `tensorViewer.maxRemoteFileMB` | 512 | Files not on local disk are read whole, up to this size |
 | `tensorViewer.autoReload` | true | Read the file again when it changes on disk, keeping the selected tensor |
-| `tensorViewer.askForRating` | true | Ask for a Marketplace rating after 3 files opened without an error on 2 different days. "Later" asks one more time after 7 days, "No thanks" never again. It never asks after an error. Turn it off with `false`. |
+| `tensorViewer.askForRating` | true | Ask for a rating after 2 files opened without an error in 2 sessions at least 4 hours apart. "Rate it" opens the Marketplace review page in VS Code and the Open VSX one in Cursor, Windsurf and VSCodium. "Later" asks one more time after 7 days, "No thanks" never again. It never asks after an error. Turn it off with `false`. |
+| `tensorViewer.showProFeatures` | true | Off: hide the Compare with... and Scan all tensors buttons and the Pro commands, so you see only the free viewer. With a Zovo Pro license they always show. |
 
 The Values table reads only the cells on the page, so a page of a 10 GB tensor costs a few KB.
 
 ## Free and Zovo Pro
 
-This viewer is free and complete. Nothing in it is paid, and every feature it has today stays free.
+Everything this viewer did before 0.6.0 is free and stays free: every format, stats, histograms, heatmaps and pictures, the values table, slices, raw arrays and Save as .npy or CSV.
 
-Zovo Pro is optional: USD 19, paid once, for every Zovo VS Code viewer. Today it adds Pro features in [Hex Viewer](https://marketplace.visualstudio.com/items?itemName=zovo.zovo-hex-viewer) (binary templates with a structure view, bookmarks, checksums and compare reports) and [DOCX Viewer](https://marketplace.visualstudio.com/items?itemName=zovo.docx-viewer-vscode) (redline export as a Word file with tracked changes, and folder compare). Pro features that come to other Zovo viewers later are included, this one too if it gets any. See [what Zovo Pro includes](https://theluckystrike.github.io/zovo-plugin-factory/pro.html).
+Two tools for professional work are part of Zovo Pro, and each has 3 free tries on your computer:
+
+| Pro tool | What you get |
+|---|---|
+| Compare two checkpoints | Every value of every tensor of two files is read. Per tensor: max and mean absolute difference, RMSE, relative L2 error (`‖A − B‖ / ‖A‖`), cosine similarity, the number of values that differ, the index of the largest difference and NaN mismatches. Also: tensors in one file only, shape changes and type changes. Works across formats (`.safetensors` against `.pt`, `.gguf` against `.npz`), on quantized GGUF tensors and on Fortran-order arrays. |
+| Scan all tensors | Every value of every tensor is read, not a sample. Flags NaN, Inf, all-zero tensors, constant tensors and float values of 10,000 or more; shows exact min, max, mean, std, L2 norm and the share of zeros per tensor. |
+
+Both show a report with a filter ("Only tensors that differ", "Only tensors to check") and save it as CSV, Markdown or JSON. A notification shows the progress, and Cancel stops a long run. A 7B model in fp16 is about 14 GB, so the compare reads 28 GB from disk; expect about a minute on a fast SSD.
+
+### Getting Pro
+
+Zovo Pro is USD 19 once, on GitHub Sponsors (the ["$19 one time" tier](https://github.com/sponsors/theluckystrike/sponsorships?tier_id=679878)) or by PayPal, and it unlocks the Pro features in every Zovo VS Code viewer: this one, [Hex Viewer](https://marketplace.visualstudio.com/items?itemName=zovo.zovo-hex-viewer), [DOCX Viewer](https://marketplace.visualstudio.com/items?itemName=zovo.docx-viewer-vscode) and the ones that get Pro features later. See [what Zovo Pro includes](https://theluckystrike.github.io/zovo-plugin-factory/pro.html).
+
+- "Get Zovo Pro" (in the message after the free tries, or the command "NumPy Viewer: Get Zovo Pro") opens the Zovo Pro tier on GitHub Sponsors in your browser.
+- Then run "NumPy Viewer: Unlock Zovo Pro with GitHub Sponsors". VS Code asks you to sign in with GitHub, and the viewer asks GitHub one question: has this account bought the Zovo Pro tier? A monthly sponsorship of USD 10 or more that is still running counts too. The "$15 one time" and "$5 a month" tiers on the same page are for Obsidian plugins and do not include Zovo Pro.
+- No GitHub account? Send USD 19 to [paypal.com/paypalme/najzzz/19](https://www.paypal.com/paypalme/najzzz/19) with "Zovo Pro" in the note, and you get a license key by email within a day.
+- A license key starts with `ZOVO1.`. Paste it with "NumPy Viewer: Enter Zovo Pro License Key". It is checked on your computer and kept in VS Code's secret storage. "NumPy Viewer: Remove Zovo Pro from This Editor" removes it.
+
+Nothing about Pro shows up on its own: no popup when a file opens, no counter, no reminder. The two buttons carry a small PRO label, and a Pro tool explains itself only when you click it after its free tries. `tensorViewer.showProFeatures: false` hides the buttons and commands.
 
 ## Privacy and safety
 
-There's no telemetry and no network access. The webview runs under a strict Content-Security-Policy with no remote scripts, and every name and metadata string is drawn as text, never as HTML. Python pickle is never run. In PyTorch files the pickle is decoded by a reader that turns every class and function name into plain data, then rebuilds tensors from an allow-list (`torch._utils._rebuild_tensor_v2` and the other rebuilders, storage types, dtypes, `OrderedDict`, `dict`, `list`, `tuple`, `set`). Anything else is shown as a placeholder and rated in the Metadata tab. Object arrays inside `.npy` files stay closed. Tensor Viewer never changes the file it shows. Save as .npy and Save as CSV write only to a new file that you pick.
+There's no telemetry and no network access, except one call to GitHub when you choose "Unlock Zovo Pro with GitHub Sponsors" (a monthly sponsor gets one silent recheck every 30 days). A license key is checked on your computer, and "Get Zovo Pro" opens a page in your browser. The webview runs under a strict Content-Security-Policy with no remote scripts, and every name and metadata string is drawn as text, never as HTML. Python pickle is never run. In PyTorch files the pickle is decoded by a reader that turns every class and function name into plain data, then rebuilds tensors from an allow-list (`torch._utils._rebuild_tensor_v2` and the other rebuilders, storage types, dtypes, `OrderedDict`, `dict`, `list`, `tuple`, `set`). Anything else is shown as a placeholder and rated in the Metadata tab. Object arrays inside `.npy` files stay closed. Tensor Viewer never changes the file it shows. Save as .npy, Save as CSV and the Pro reports write only to a new file that you pick.
 
 ## Limits
 

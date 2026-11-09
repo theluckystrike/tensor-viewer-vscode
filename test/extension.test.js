@@ -16,11 +16,16 @@ const vscodeMock = {
     joinPath: (u, ...p) => ({ ...u, path: path.join(u.path, ...p), fsPath: path.join(u.fsPath || u.path, ...p) }),
     file: p => ({ scheme: 'file', path: p, fsPath: p, toString() { return 'file://' + this.path; } }),
   },
-  window: { registerCustomEditorProvider: (id, provider) => { registered.editors.push({ id, provider }); return { dispose() {} }; } },
+  window: { registerCustomEditorProvider: (id, provider) => { registered.editors.push({ id, provider }); return { dispose() {} }; },
+    registerUriHandler: () => ({ dispose() {} }), onDidChangeWindowState: () => ({ dispose() {} }), state: { focused: true } },
+  // Zovo Pro (license module): an event emitter, secret storage and auth are touched at activation, never the network.
+  EventEmitter: class { constructor() { this.l = []; this.event = f => { this.l.push(f); return { dispose: () => { this.l = this.l.filter(x => x !== f); } }; }; } fire(v) { this.l.slice().forEach(f => f(v)); } dispose() { this.l = []; } },
+  authentication: { getSession: async () => undefined, onDidChangeSessions: () => ({ dispose() {} }) },
   commands: { registerCommand: (id, fn) => { registered.commands[id] = fn; return { dispose() {} }; }, executeCommand: async (...a) => { executed.push(a); } },
   RelativePattern: class { constructor(base, pattern) { this.base = base; this.pattern = pattern; } },
   workspace: {
     getConfiguration: () => ({ get: (_k, d) => d }),
+    onDidChangeConfiguration: () => ({ dispose() {} }),
     fs: { stat: async u => { const st = require('fs').statSync(u.fsPath); return { size: st.size, mtime: st.mtimeMs }; } },
     createFileSystemWatcher: pattern => {
       const w = { pattern, change: [], create: [], disposed: false, onDidChange: fn => w.change.push(fn), onDidCreate: fn => w.create.push(fn), dispose() { w.disposed = true; } };
@@ -35,13 +40,23 @@ Module._load = function (req, ...rest) { return req === 'vscode' ? vscodeMock : 
 const ext = require('../src/extension');
 
 test('activate registers the editor and every command in package.json', () => {
-  ext.activate({ subscriptions: [], extensionUri: vscodeMock.Uri.file(root), extensionPath: root });
+  ext.activate(fakeContext());
   const pkg = require('../package.json');
   assert.deepStrictEqual(registered.editors.map(e => e.id), pkg.contributes.customEditors.map(e => e.viewType));
   assert.deepStrictEqual(Object.keys(registered.commands).sort(), pkg.contributes.commands.map(c => c.command).sort());
   assert.strictEqual(pkg.keywords.length, 30);
   assert.strictEqual(pkg.publisher, 'zovo');
 });
+
+function fakeContext() {
+  const store = new Map(), secrets = new Map();
+  return {
+    subscriptions: [], extensionUri: vscodeMock.Uri.file(root), extensionPath: root,
+    globalState: { get: (k, d) => (store.has(k) ? store.get(k) : d), update: async (k, v) => { store.set(k, v); }, keys: () => [...store.keys()], setKeysForSync() {} },
+    workspaceState: { get: (k, d) => (store.has('ws:' + k) ? store.get('ws:' + k) : d), update: async (k, v) => { store.set('ws:' + k, v); } },
+    secrets: { get: async k => secrets.get(k), store: async (k, v) => { secrets.set(k, v); }, delete: async k => { secrets.delete(k); }, onDidChange: () => ({ dispose() {} }) },
+  };
+}
 
 function fakePanel() {
   const sent = [];
@@ -335,7 +350,9 @@ test('rating wiring: a file that opens counts once, a broken file blocks the ask
   const fs = require('fs'); const os = require('os');
   const store = new Map();
   const globalState = { get: k => store.get(k), update: async (k, v) => { store.set(k, v); } };
-  ext.activate({ subscriptions: [], extensionUri: vscodeMock.Uri.file(root), extensionPath: root, globalState });
+  // v2.2 does not count files inside the extension folder (walkthrough samples), and the fixtures live there:
+  // point extensionUri at dist/ so the fixtures count as user files.
+  ext.activate({ ...fakeContext(), extensionUri: vscodeMock.Uri.file(path.join(root, 'dist')), extensionPath: path.join(root, 'dist'), globalState });
   const provider = registered.editors[0].provider;
   const state = () => store.get('zovo.rating.v2') || { count: 0, lastErrorAt: 0 };
   const open = async (file, wait) => {

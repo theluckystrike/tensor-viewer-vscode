@@ -13,8 +13,11 @@ const { RAW_TYPES, parseShape, resolveRawLayout, shapeHint, cleanLayout } = requ
 const { PLAIN } = require('./core/dtypes');
 const { createRatingPrompt } = require('./rate');
 const { registerSupport, commandUris, showLinks } = require('./support');
+const { registerPro } = require('./proHost');
 
 let rating = { success() {}, failure() {} };
+let proHost = null; // Zovo Pro tools (compare, scan); set in activate()
+const proState = () => (proHost ? proHost.state() : { show: false, licensed: false, trials: {} });
 
 const VIEW_TYPE = 'tensorViewer.view';
 const RAW_VIEW_TYPE = 'tensorViewer.raw';
@@ -258,8 +261,8 @@ class TensorEditorProvider {
     const sendModel = async (reloaded = false) => {
       try {
         const model = await modelP;
-        post({ ...publicModel(model, name), openMs: await openMsP, reloaded });
-        if (!counted) { counted = true; rating.success(); }
+        post({ ...publicModel(model, name), openMs: await openMsP, reloaded, pro: proState() });
+        if (!counted) { counted = true; rating.success(uri); }
       } catch (e) {
         post({ type: 'error', message: e.message || String(e), action: e.needsLayout ? 'rawLayout' : undefined });
         // Rating: a file that did not open blocks the ask. Not counted: a raw file whose type and shape were not
@@ -330,6 +333,12 @@ class TensorEditorProvider {
       const v = validateWebviewMessage(raw, model.tensors.length, model.tensors);
       if (!v.ok) return;
       const msg = v.msg;
+      if (msg.type === 'pro') {
+        if (!proHost) return;
+        if (msg.action === 'compare') await proHost.runCompare(model, name, uri);
+        else await proHost.runScan(model, name, uri);
+        return;
+      }
       if (msg.type === 'image') {
         const req = { layout: msg.layout, frame: msg.frame, range: msg.range };
         try {
@@ -383,8 +392,13 @@ class TensorEditorProvider {
         post({ type: 'copied', what: msg.what, text });
       }
     });
+    const proSubs = proHost ? [
+      proHost.onDidChange(() => post({ type: 'pro', ...proState() })),
+      vscode.workspace.onDidChangeConfiguration(e => { if (e.affectsConfiguration('tensorViewer.showProFeatures')) post({ type: 'pro', ...proState() }); }),
+    ] : [];
     panel.onDidDispose(() => {
       disposed = true;
+      for (const d of proSubs) d.dispose();
       clearTimeout(watchTimer);
       if (watcher) watcher.dispose();
       if (source) source.close();
@@ -396,6 +410,8 @@ class TensorEditorProvider {
 function activate(context) {
   rating = createRatingPrompt({ vscode, context, extensionId: 'zovo.tensor-viewer', section: 'tensorViewer', name: 'NPZ Viewer & NPY Viewer' });
   registerSupport({ vscode, context, prefix: 'tensorViewer', selfId: 'zovo.tensor-viewer' });
+  // The Pro tools must never stop the free viewer: if they cannot start, the viewer works without them.
+  try { proHost = registerPro({ vscode, context, openSource, openTensorFile }); } catch (e) { proHost = null; console.error('Zovo Pro tools did not start:', e && e.message); }
   context.subscriptions.push(
     vscode.window.registerCustomEditorProvider(VIEW_TYPE, new TensorEditorProvider(context), {
       supportsMultipleEditorsPerDocument: true,
