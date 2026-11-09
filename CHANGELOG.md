@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.4.1 (2026-11-09)
+
+- PayPal is now in the footer links and in the README "Support Zovo" section, next to GitHub Sponsors. Both are optional; the viewer works the same without them.
+- README: a short "Free and Zovo Pro" note. This viewer stays free and complete; nothing in it becomes paid.
+- No change to how files open or look.
+
 ## 0.4.0 (2026-11-08)
 
 - Opens PyTorch files: `.pt`, `.pth`, `.ckpt` and `pytorch_model*.bin`. Every tensor is listed by its full name with dtype and shape, and a click shows stats, a heatmap and the values. This covers state dicts, training checkpoints with optimizer state, Lightning checkpoints, whole saved models, TorchScript files and the format from before PyTorch 1.6. Epoch, step and loss show in the header.

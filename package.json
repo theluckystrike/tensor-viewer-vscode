@@ -2,7 +2,7 @@
   "name": "tensor-viewer",
   "displayName": "NPZ Viewer & NPY Viewer, PyTorch, GGUF & Safetensors (NumPy Viewer)",
   "description": "NPZ and NPY viewer for NumPy arrays, plus PyTorch .pt, .pth and .ckpt checkpoints, GGUF and Safetensors models: names, shape, dtype, stats, heatmaps and images. Reloads when the file changes. Reads pickle without running it. Offline, no Python.",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "publisher": "zovo",
   "license": "MIT",
   "icon": "icon.png",

@@ -9,7 +9,7 @@
 // A link shows only when its value is set. Never add a URL here that is not in funding.json.
 const FUNDING = {
   "github_sponsors": "https://github.com/sponsors/theluckystrike",
-  "paypal_me": "",
+  "paypal_me": "https://www.paypal.com/paypalme/najzzz",
   "buy_me_a_coffee": ""
 };
 
