@@ -113,9 +113,7 @@ function createLicense(o) {
       const sep = paymentUrl.includes('?') ? '&' : '?';
       return open(`${paymentUrl}${sep}client_reference_id=${encodeURIComponent(installId())}`);
     }
-    const opened = await open(paymentUrl);
-    if (onSponsors() && sponsorsRail()) armReturn('sponsors');
-    return opened;
+    return openArmed(paymentUrl, onSponsors() && sponsorsRail() ? 'sponsors' : '');
   }
 
   // ---- back from the browser (CONV2) ----
@@ -131,6 +129,11 @@ function createLicense(o) {
       winSub = w.onDidChangeWindowState((e) => { onWindow(e).catch(() => {}); });
       if (context.subscriptions && winSub) context.subscriptions.push(winSub);
     }
+  }
+  // Arm first, then open: the browser can take the focus before openExternal resolves. A failed open disarms.
+  async function openArmed(url, kind) {
+    if (kind) armReturn(kind);
+    try { return await open(url); } catch (e) { if (kind) pending = null; throw e; }
   }
   async function onWindow(e) {
     if (!pending) return;
@@ -187,8 +190,7 @@ function createLicense(o) {
     ];
     const pick = await vscode.window.showInformationMessage(`Pay for ${label} with PayPal`, { modal: true, detail: steps.join('\n\n') }, ...buttons);
     if (pick === one || pick === team) {
-      await open(`${paypalUrl}/${pick === one ? PRICE.one : PRICE.team}USD`);
-      armReturn('paypal');
+      await openArmed(`${paypalUrl}/${pick === one ? PRICE.one : PRICE.team}USD`, 'paypal');
       return false;
     }
     if (pick === send) { await sendTransactionId(); return false; }
@@ -230,7 +232,7 @@ function createLicense(o) {
         const btns = ['Open GitHub Sponsors'];
         if (paypalUrl) btns.push(PAYPAL_LABEL);
         const pick = await vscode.window.showWarningMessage(r.message, ...btns);
-        if (pick === 'Open GitHub Sponsors') { await open(SPONSORS_ONE_TIME); armReturn('sponsors'); }
+        if (pick === 'Open GitHub Sponsors') await openArmed(SPONSORS_ONE_TIME, 'sponsors');
         else if (pick === PAYPAL_LABEL) await payWithPayPal();
       } else if (rail.id === 'github-sponsors' && ['no-session', 'auth', 'scope'].includes(r.reason) && (paypalUrl || byId('license-key'))) {
         // No GitHub sign-in in this editor (or it failed): offer the ways that need no GitHub.

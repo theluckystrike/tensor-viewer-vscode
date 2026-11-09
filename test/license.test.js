@@ -446,3 +446,17 @@ test('CONV2 no network and no message on activation', async () => {
   f.log.win && f.log.win({ focused: false }); f.log.win && f.log.win({ focused: true }); await tick();
   assert.equal(f.log.info.length + f.log.warn.length + f.log.opened.length, 0);
 });
+
+test('CONV2 sequence: PayPal return message, then Get Pro arms the Sponsors return message again', async () => {
+  const sp = fakeSponsors({ pro: false, reason: 'not-sponsor', message: 'no' });
+  const f = fakeVscode({ info: (msg, rest) => (rest[0] && rest[0].modal ? 'Pay USD 19 on PayPal' : msg.startsWith('Back from PayPal') ? 'Send the transaction ID' : msg.startsWith('Back from GitHub') ? 'Not yet' : undefined) });
+  const keyOnly = lic.createKeyRail({ ...f, sku: 'hex-pro', publicKey: PUB, now: () => NOW });
+  const pro = createLicense({ ...f, sku: 'hex-pro', name: 'Zovo', rails: [sp, keyOnly], commandPrefix: 'hexViewer', publicKey: PUB, now: () => NOW });
+  await pro.ready;
+  await f.log.commands['hexViewer.payWithPayPal']();
+  f.log.win({ focused: false }); f.log.win({ focused: true }); await tick(); await tick();
+  assert.match(f.log.info.at(-1), /^Back from PayPal\?/);
+  await f.log.commands['hexViewer.getPro']();
+  f.log.win({ focused: false }); f.log.win({ focused: true }); await tick(); await tick();
+  assert.match(f.log.info.at(-1), /^Back from GitHub Sponsors\?/);
+});
