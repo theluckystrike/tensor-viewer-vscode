@@ -309,3 +309,38 @@ test('shared license module is byte-identical to the factory copy (when the fact
 test('fixture folder is untouched by the Pro tests', () => {
   assert.ok(fs.readdirSync(FIX).every(n => !/^(a|b|s|r|c|f|f2|w)\.(npy|safetensors)$/.test(n)));
 });
+
+test('VERP1: scan of a file with no readable tensor shows a message and keeps the free try', async () => {
+  const { registerPro } = require('../src/proHost');
+  const store = new Map(), secrets = new Map(), shown = [], panels = [];
+  const vscode = {
+    Uri: { parse: s => ({ toString: () => s }), joinPath: (u, ...p) => ({ path: [u.path, ...p].join('/') }) },
+    ProgressLocation: { Notification: 15 }, ViewColumn: { Active: -1 },
+    EventEmitter: class { constructor() { this.l = []; this.event = f => { this.l.push(f); return { dispose() {} }; }; } fire(v) { this.l.forEach(f => f(v)); } dispose() {} },
+    authentication: { getSession: async () => undefined, onDidChangeSessions: () => ({ dispose() {} }) },
+    window: {
+      registerUriHandler: () => ({ dispose() {} }), onDidChangeWindowState: () => ({ dispose() {} }), state: { focused: true },
+      setStatusBarMessage() {}, showInformationMessage: async m => { shown.push('INFO ' + m); }, showErrorMessage: async m => { shown.push('ERR ' + m); }, showWarningMessage: async m => { shown.push('WARN ' + m); },
+      withProgress: async (o, fn) => fn({ report() {} }, { isCancellationRequested: false }),
+      createWebviewPanel: (type, title) => { const p = { type, title, webview: { cspSource: 'x', html: '', onDidReceiveMessage: () => ({ dispose() {} }) }, onDidDispose: () => ({ dispose() {} }) }; panels.push(p); return p; },
+    },
+    commands: { registerCommand: () => ({ dispose() {} }), executeCommand: async () => {} },
+    workspace: { getConfiguration: () => ({ get: (k, d) => d }), onDidChangeConfiguration: () => ({ dispose() {} }) },
+    env: { openExternal: async () => true },
+  };
+  const context = { subscriptions: [], globalState: { get: (k, d) => (store.has(k) ? store.get(k) : d), update: async (k, v) => { store.set(k, v); }, keys: () => [...store.keys()], setKeysForSync() {} },
+    secrets: { get: async k => secrets.get(k), store: async (k, v) => { secrets.set(k, v); }, delete: async k => { secrets.delete(k); }, onDidChange: () => ({ dispose() {} }) } };
+  const host = registerPro({ vscode, context, openSource: async () => { throw new Error('not used'); }, openTensorFile: async () => { throw new Error('not used'); } });
+  const trials = () => host.pro.trials().scan;
+  assert.strictEqual(trials(), 3);
+  await host.runScan({ tensors: [] }, 'evil.pt');
+  await host.runScan({ tensors: [{ name: 'x', readable: false, numel: 2 ** 40 }] }, 'shape-bomb.pt');
+  assert.strictEqual(trials(), 3, 'no try used: ' + shown.join(' | '));
+  assert.strictEqual(panels.length, 0);
+  assert.match(shown[0], /^WARN evil\.pt has no tensor values this viewer can read, so there is nothing to scan\. Your free try was not used\.$/);
+  const m = await open('gpt2_tiny.safetensors');
+  await host.runScan(m.model || m, 'gpt2_tiny.safetensors');
+  assert.strictEqual(trials(), 2, 'a real scan uses one try');
+  assert.strictEqual(panels.length, 1);
+  await m.close();
+});

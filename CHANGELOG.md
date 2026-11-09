@@ -8,6 +8,8 @@ Everything that was free stays free. New, with the optional Zovo Pro (USD 19 onc
 - Scan all tensors: every value of every tensor, no sampling. Flags NaN, Inf, all-zero and constant tensors and float values of 10,000 or more, with exact min, max, mean, std and L2 norm.
 - Both open a report you can filter and save as CSV, Markdown or JSON, and both can be cancelled.
 - "Compare with..." and "Scan all tensors" buttons at the top of the viewer, Command Palette commands, and Explorer menu entries. `tensorViewer.showProFeatures: false` hides them.
+- Scan all tensors on a file with no readable tensor (for example a pickle the viewer will not run) says so and does not use a free try.
+- Buying Zovo Pro: the README lists the PayPal steps (USD 19, or USD 59 for a team of 5) and the transaction ID form.
 
 Also:
 

@@ -119,6 +119,12 @@ function registerPro({ vscode, context, openSource, openTensorFile, prefix = 'te
       try { opened = await openModel(uri); } catch (e) { vscode.window.showErrorMessage(`Could not open ${baseName(uri)}. ${e.message || e}`); return; }
       model = opened.model; name = baseName(uri);
     }
+    // Nothing readable (a pickle the viewer would not run, a damaged or empty file): say so and keep the free try.
+    if (!(model.tensors || []).some(t => t.readable)) {
+      if (opened) await opened.source.close();
+      vscode.window.showWarningMessage(`${name} has no tensor values this viewer can read, so there is nothing to scan. Your free try was not used.`);
+      return;
+    }
     await pro.useTrial('scan');
     try {
       const report = await withProgress(`Scanning every tensor of ${name}`, o => scanModel(model, name, o));

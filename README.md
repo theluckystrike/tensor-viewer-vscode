@@ -147,10 +147,10 @@ Zovo Pro is USD 19 once, on GitHub Sponsors (the ["$19 one time" tier](https://g
 
 - "Get Zovo Pro" (in the message after the free tries, or the command "NumPy Viewer: Get Zovo Pro") opens the Zovo Pro tier on GitHub Sponsors in your browser.
 - Then run "NumPy Viewer: Unlock Zovo Pro with GitHub Sponsors". VS Code asks you to sign in with GitHub, and the viewer asks GitHub one question: has this account bought the Zovo Pro tier? A monthly sponsorship of USD 10 or more that is still running counts too. The "$15 one time" and "$5 a month" tiers on the same page are for Obsidian plugins and do not include Zovo Pro.
-- No GitHub account? Send USD 19 to [paypal.com/paypalme/najzzz/19](https://www.paypal.com/paypalme/najzzz/19) with "Zovo Pro" in the note, and you get a license key by email within a day.
+- With PayPal (no GitHub payment needed): "Pay with PayPal" (or the command "NumPy Viewer: Pay for Zovo Pro with PayPal") shows the steps and opens PayPal with the amount filled in: [USD 19 for one person](https://www.paypal.com/paypalme/najzzz/19USD) or [USD 59 for a team of 5](https://www.paypal.com/paypalme/najzzz/59USD), one key for the team. Then send the transaction ID from the PayPal receipt with the [Zovo Pro key form](https://github.com/theluckystrike/zovo-plugin-factory/issues/new?template=zovo-pro-key.yml) on GitHub. The form is public, so post only the ID. No GitHub account? Write "Zovo Pro" in the PayPal note instead. The license key comes to the email address of your PayPal account.
 - A license key starts with `ZOVO1.`. Paste it with "NumPy Viewer: Enter Zovo Pro License Key". It is checked on your computer and kept in VS Code's secret storage. "NumPy Viewer: Remove Zovo Pro from This Editor" removes it.
 
-Nothing about Pro shows up on its own: no popup when a file opens, no counter, no reminder. The two buttons carry a small PRO label, and a Pro tool explains itself only when you click it after its free tries. `tensorViewer.showProFeatures: false` hides the buttons and commands.
+Nothing about Pro shows up on its own: no popup when a file opens, no counter, no reminder. After you click "Get Zovo Pro" or a PayPal button, one short message asks, when you are back in VS Code, whether you want to finish the unlock. It shows once, within 2 hours of the click, and not at all if Pro is already on. The two buttons carry a small PRO label, and a Pro tool explains itself only when you click it after its free tries. `tensorViewer.showProFeatures: false` hides the buttons and commands.
 
 ## Privacy and safety
 
