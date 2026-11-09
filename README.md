@@ -121,11 +121,13 @@ Deflated `.npz` entries can't be read at an offset. For those, the header comes 
 
 The Values table reads only the cells on the page, so a page of a 10 GB tensor costs a few KB.
 
+
+
 ## Free and Zovo Pro
 
 This viewer is free and complete. Nothing in it is paid, and every feature it has today stays free.
 
-Zovo Pro is optional: USD 15, paid once, for every Zovo VS Code viewer. Today it adds Pro features in [Hex Viewer](https://marketplace.visualstudio.com/items?itemName=zovo.zovo-hex-viewer) (binary templates with a structure view, bookmarks, checksums and compare reports). Pro features that come to other Zovo viewers later are included, this one too if it gets any. See [what Zovo Pro includes](https://theluckystrike.github.io/zovo-plugin-factory/pro.html).
+Zovo Pro is optional: USD 15, paid once, for every Zovo VS Code viewer. Today it adds Pro features in [Hex Viewer](https://marketplace.visualstudio.com/items?itemName=zovo.zovo-hex-viewer) (binary templates with a structure view, bookmarks, checksums and compare reports) and [DOCX Viewer](https://marketplace.visualstudio.com/items?itemName=zovo.docx-viewer-vscode) (redline export as a Word file with tracked changes, and folder compare). Pro features that come to other Zovo viewers later are included, this one too if it gets any. See [what Zovo Pro includes](https://theluckystrike.github.io/zovo-plugin-factory/pro.html).
 
 ## Privacy and safety
 
