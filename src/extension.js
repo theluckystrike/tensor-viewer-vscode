@@ -262,7 +262,8 @@ class TensorEditorProvider {
       try {
         const model = await modelP;
         post({ ...publicModel(model, name), openMs: await openMsP, reloaded, pro: proState() });
-        if (!counted) { counted = true; rating.success(uri); }
+        // A file with no tensor (for example a pickle that only calls os.system) is shown, but it is not a good file for the rating ask.
+        if (!counted && model.tensors && model.tensors.length > 0) { counted = true; rating.success(uri); }
       } catch (e) {
         post({ type: 'error', message: e.message || String(e), action: e.needsLayout ? 'rawLayout' : undefined });
         // Rating: a file that did not open blocks the ask. Not counted: a raw file whose type and shape were not

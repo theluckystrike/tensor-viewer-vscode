@@ -9,6 +9,7 @@ Everything that was free stays free. New, with the optional Zovo Pro (USD 19 onc
 - Both open a report you can filter and save as CSV, Markdown or JSON, and both can be cancelled.
 - "Compare with..." and "Scan all tensors" buttons at the top of the viewer, Command Palette commands, and Explorer menu entries. `tensorViewer.showProFeatures: false` hides them.
 - Scan all tensors on a file with no readable tensor (for example a pickle the viewer will not run) says so and does not use a free try.
+- A file with no tensor (for example a pickle that only calls os.system) no longer counts toward the rating question.
 - Buying Zovo Pro: the README lists the PayPal steps (USD 19, or USD 59 for a team of 5) and the transaction ID form.
 
 Also:

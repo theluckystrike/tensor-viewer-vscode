@@ -369,6 +369,9 @@ test('rating wiring: a file that opens counts once, a broken file blocks the ask
     await open(path.join(FIX, 'tiny-llama-q8.gguf'), 'model');
     assert.strictEqual(state().count, 1);
     assert.strictEqual(state().lastErrorAt, 0);
+    await open(path.join(FIX, 'torch', 'evil.pt'), 'model');
+    assert.strictEqual(state().count, 1, 'a file with no tensor (a pickle that only calls os.system) does not count as a good file');
+    assert.strictEqual(state().lastErrorAt, 0);
     fs.writeFileSync(path.join(dir, 'site.pth'), 'import os\n');
     await open(path.join(dir, 'site.pth'), 'error');
     assert.strictEqual(state().lastErrorAt, 0, 'a plain-text .pth file moves to the text editor; that is not a failure');
