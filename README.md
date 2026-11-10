@@ -146,15 +146,15 @@ Both show a report with a filter ("Only tensors that differ", "Only tensors to c
 Zovo Pro is USD 19 once, on GitHub Sponsors (the ["$19 one time" tier](https://github.com/sponsors/theluckystrike/sponsorships?tier_id=679878)) or by PayPal, and it unlocks the Pro features in every Zovo VS Code viewer: this one, [Hex Viewer](https://marketplace.visualstudio.com/items?itemName=zovo.zovo-hex-viewer), [DOCX Viewer](https://marketplace.visualstudio.com/items?itemName=zovo.docx-viewer-vscode) and the ones that get Pro features later. See [what Zovo Pro includes](https://theluckystrike.github.io/zovo-plugin-factory/pro.html).
 
 - "Get Zovo Pro" (in the message after the free tries, or the command "NumPy Viewer: Get Zovo Pro") opens the Zovo Pro tier on GitHub Sponsors in your browser.
-- Then run "NumPy Viewer: Unlock Zovo Pro with GitHub Sponsors". VS Code asks you to sign in with GitHub, and the viewer asks GitHub one question: has this account bought the Zovo Pro tier? A monthly sponsorship of USD 10 or more that is still running counts too. The "$15 one time" and "$5 a month" tiers on the same page are for Obsidian plugins and do not include Zovo Pro.
+- Then run "Zovo Pro: I already paid: unlock with GitHub Sponsors". VS Code asks you to sign in with GitHub, and the viewer asks GitHub one question: has this account bought the Zovo Pro tier? A monthly sponsorship of USD 10 or more that is still running counts too. The "$15 one time" and "$5 a month" tiers on the same page are for Obsidian plugins and do not include Zovo Pro.
 - With PayPal (no GitHub payment needed): "Pay with PayPal" (or the command "NumPy Viewer: Pay for Zovo Pro with PayPal") shows the steps and opens PayPal with the amount filled in: [USD 19 for one person](https://www.paypal.com/paypalme/najzzz/19USD) or [USD 59 for a team of 5](https://www.paypal.com/paypalme/najzzz/59USD), one key for the team. Then send the transaction ID from the PayPal receipt with the [Zovo Pro key form](https://github.com/theluckystrike/zovo-plugin-factory/issues/new?template=zovo-pro-key.yml) on GitHub. The form is public, so post only the ID. No GitHub account? Write "Zovo Pro" in the PayPal note instead. The license key comes to the email address of your PayPal account.
-- A license key starts with `ZOVO1.`. Paste it with "NumPy Viewer: Enter Zovo Pro License Key". It is checked on your computer and kept in VS Code's secret storage. "NumPy Viewer: Remove Zovo Pro from This Editor" removes it.
+- A license key starts with `ZOVO1.`. Paste it with "Zovo Pro: Enter Zovo Pro license key". Turn Pro on once: the other Zovo extensions on the same computer read it from `~/.zovo/pro.json` (readable only by you; the key, or your GitHub login and tier, never a token) and are Pro too, with no second sign-in or paste. It is checked on your computer and kept in VS Code's secret storage. "Zovo Pro: Remove Zovo Pro from this editor" removes it.
 
 Nothing about Pro shows up on its own: no popup when a file opens, no counter, no reminder. After you click "Get Zovo Pro" or a PayPal button, one short message asks, when you are back in VS Code, whether you want to finish the unlock. It shows once, within 2 hours of the click, and not at all if Pro is already on. The two buttons carry a small PRO label, and a Pro tool explains itself only when you click it after its free tries. `tensorViewer.showProFeatures: false` hides the buttons and commands.
 
 ## Privacy and safety
 
-There's no telemetry and no network access, except one call to GitHub when you choose "Unlock Zovo Pro with GitHub Sponsors" (a monthly sponsor gets one silent recheck every 30 days). A license key is checked on your computer, and "Get Zovo Pro" opens a page in your browser. The webview runs under a strict Content-Security-Policy with no remote scripts, and every name and metadata string is drawn as text, never as HTML. Python pickle is never run. In PyTorch files the pickle is decoded by a reader that turns every class and function name into plain data, then rebuilds tensors from an allow-list (`torch._utils._rebuild_tensor_v2` and the other rebuilders, storage types, dtypes, `OrderedDict`, `dict`, `list`, `tuple`, `set`). Anything else is shown as a placeholder and rated in the Metadata tab. Object arrays inside `.npy` files stay closed. Tensor Viewer never changes the file it shows. Save as .npy, Save as CSV and the Pro reports write only to a new file that you pick.
+There's no telemetry and no network access, except one call to GitHub when you choose "Zovo Pro: I already paid: unlock with GitHub Sponsors" (a monthly sponsor gets one silent recheck every 30 days). A license key is checked on your computer, and "Get Zovo Pro" opens a page in your browser. The webview runs under a strict Content-Security-Policy with no remote scripts, and every name and metadata string is drawn as text, never as HTML. Python pickle is never run. In PyTorch files the pickle is decoded by a reader that turns every class and function name into plain data, then rebuilds tensors from an allow-list (`torch._utils._rebuild_tensor_v2` and the other rebuilders, storage types, dtypes, `OrderedDict`, `dict`, `list`, `tuple`, `set`). Anything else is shown as a placeholder and rated in the Metadata tab. Object arrays inside `.npy` files stay closed. Tensor Viewer never changes the file it shows. Save as .npy, Save as CSV and the Pro reports write only to a new file that you pick.
 
 ## Limits
 
@@ -168,18 +168,24 @@ MIT. Bundled libraries are listed in THIRD-PARTY-NOTICES.md (@huggingface/gguf, 
 
 ## Support Zovo
 
-Zovo extensions are free, with no ads and no tracking. They are made by [theluckystrike](https://github.com/theluckystrike) on GitHub. If this one saves you time, you can support the work:
+Zovo Pro: USD 19 once, every Zovo viewer. [Get Zovo Pro on GitHub Sponsors](https://github.com/sponsors/theluckystrike/sponsorships?tier_id=679878) to turn on the Pro tools in this extension and in the other Zovo extensions you use. The free features stay free.
+
+Zovo extensions have no ads and no tracking. They are made by [theluckystrike](https://github.com/theluckystrike) on GitHub. You can also support the work with no Pro:
 
 - [Sponsor on GitHub](https://github.com/sponsors/theluckystrike)
 - [PayPal](https://www.paypal.com/paypalme/najzzz)
 - [Follow theluckystrike on GitHub](https://github.com/theluckystrike)
 
+### Need your format supported?
+
+Open a [format request](https://github.com/theluckystrike/tensor-viewer-vscode/issues/new?template=format-request.yml) with a sample file, and I reply there whether it can be done. For USD 299 once, through [this GitHub Sponsors tier](https://github.com/sponsors/theluckystrike/sponsorships?tier_id=679995), I add your file format or a missing feature to this extension, with tests, within 7 days.
+
 ## More tools by Zovo
 
-- [NetCDF Viewer & HDF5 Viewer (NC Viewer, H5 Viewer)](https://marketplace.visualstudio.com/items?itemName=zovo.hdf5-netcdf-explorer) browses groups, attributes and values in HDF5 and NetCDF files and plots slices.
+- [Hex Viewer & Binary Viewer, Hex Editor (Large Files)](https://marketplace.visualstudio.com/items?itemName=zovo.zovo-hex-viewer) opens binary files of any size, with find, a data inspector and byte editing.
 - [Pickle Viewer & PKL Viewer (No Python)](https://marketplace.visualstudio.com/items?itemName=zovo.zovo-pickle-viewer) opens Python pickle files without Python and never runs their code.
+- [NetCDF Viewer & HDF5 Viewer (NC Viewer, H5 Viewer)](https://marketplace.visualstudio.com/items?itemName=zovo.hdf5-netcdf-explorer) browses groups, attributes and values in HDF5 and NetCDF files and plots slices.
+- [Docstring Generator & Python Docstring Updater (Google, NumPy, Sphinx, JSDoc)](https://marketplace.visualstudio.com/items?itemName=zovo.zovo-docstring-generator) writes Google, NumPy or Sphinx docstrings for Python functions and classes.
 - [TIFF Viewer & TIF Viewer (16-bit, GeoTIFF)](https://marketplace.visualstudio.com/items?itemName=zovo.tiff-viewer) opens 16-bit, float, multi-page and GeoTIFF images.
-- [DICOM Viewer, MRI Viewer & CT Viewer (NIfTI)](https://marketplace.visualstudio.com/items?itemName=zovo.dicom-nifti-viewer) opens CT and MRI scans, DICOM folders and NIfTI volumes with window presets and three views.
-- [GeoJSON Viewer, KML Viewer & GPX Viewer (Map Preview, Shapefile)](https://marketplace.visualstudio.com/items?itemName=zovo.zovo-geo-map-viewer) GeoJSON viewer, KML viewer and GPX viewer with a map preview in VS Code. Also opens shapefiles (SHP, zipped), KMZ, TopoJSON, WKT and CSV with lat/lon: feature table, properties, GPX distance and elevation profile, reprojection from .prj, PNG export. Free, no sign-in, works offline.
 
 See [all Zovo extensions on the Marketplace](https://marketplace.visualstudio.com/publishers/zovo).

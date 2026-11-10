@@ -2,7 +2,7 @@
   "name": "tensor-viewer",
   "displayName": "NPZ Viewer & NPY Viewer, PyTorch, GGUF & Safetensors (NumPy Viewer)",
   "description": "NPZ and NPY viewer for NumPy arrays, plus PyTorch .pt, .pth and .ckpt checkpoints, GGUF and Safetensors models: names, shape, dtype, stats, heatmaps and images. Reloads when the file changes. Reads pickle without running it. Offline, no Python.",
-  "version": "0.6.0",
+  "version": "0.6.1",
   "publisher": "zovo",
   "license": "MIT",
   "icon": "icon.png",
@@ -150,28 +150,28 @@
       },
       {
         "command": "tensorViewer.getPro",
-        "title": "Get Zovo Pro (USD 19 once, all Zovo viewers)",
-        "category": "NumPy Viewer"
+        "title": "Get Zovo Pro (USD 19 once, all 22 Zovo extensions)",
+        "category": "Zovo Pro"
       },
       {
         "command": "tensorViewer.unlockWithSponsors",
-        "title": "Unlock Zovo Pro with GitHub Sponsors",
-        "category": "NumPy Viewer"
+        "title": "I already paid: unlock with GitHub Sponsors",
+        "category": "Zovo Pro"
       },
       {
         "command": "tensorViewer.payWithPayPal",
-        "title": "Pay for Zovo Pro with PayPal (USD 19)",
-        "category": "NumPy Viewer"
+        "title": "Pay for Zovo Pro with PayPal (USD 19, team of 5 USD 59)",
+        "category": "Zovo Pro"
       },
       {
         "command": "tensorViewer.enterLicenseKey",
-        "title": "Enter Zovo Pro License Key",
-        "category": "NumPy Viewer"
+        "title": "Enter Zovo Pro license key",
+        "category": "Zovo Pro"
       },
       {
         "command": "tensorViewer.removeLicense",
-        "title": "Remove Zovo Pro from This Editor",
-        "category": "NumPy Viewer"
+        "title": "Remove Zovo Pro from this editor",
+        "category": "Zovo Pro"
       }
     ],
     "configuration": {
@@ -248,6 +248,14 @@
             "completionEvents": [
               "onCommand:workbench.action.openSettings"
             ]
+          },
+          {
+            "id": "zovo-related",
+            "title": "Files that often come with tensor files",
+            "description": "If your project also has binary files, pickle files or HDF5 and NetCDF files, these free Zovo extensions open them. A link opens the extension page, and you choose there whether to install it.\n[Hex Viewer](command:extension.open?%5B%22zovo.zovo-hex-viewer%22%5D)\n[Pickle Viewer](command:extension.open?%5B%22zovo.zovo-pickle-viewer%22%5D)\n[HDF5 and NetCDF Explorer](command:extension.open?%5B%22zovo.hdf5-netcdf-explorer%22%5D)",
+            "media": {
+              "markdown": "walkthrough/related.md"
+            }
           }
         ]
       }
@@ -329,6 +337,6 @@
     "url": "https://github.com/theluckystrike/tensor-viewer-vscode"
   },
   "sponsor": {
-    "url": "https://github.com/sponsors/theluckystrike"
+    "url": "https://github.com/sponsors/theluckystrike/sponsorships?tier_id=679878"
   }
 }

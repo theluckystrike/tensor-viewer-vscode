@@ -22,13 +22,15 @@ const FEATURES = {
   },
 };
 
-// The shared module adds the "How to buy" steps (GitHub Sponsors, PayPal, team) under this text.
+// EXEC14: the shared module (buy path v2) writes the price, the other Pro tools, the count of Zovo extensions and
+// "Everything that is free today stays free." under the first sentence of the detail, then [Get Zovo Pro, USD 19]
+// [Pay with PayPal] [I already paid]. PRICE_LINE stays exported for older tests.
 const PRICE_LINE = 'Zovo Pro is USD 19 once and unlocks the Pro features in every Zovo viewer.';
-const FREE_LINE = 'Everything else in NumPy Viewer stays free: every format, stats, histograms, heatmaps and images, the values table, slices, raw arrays and Save as .npy or CSV.';
+const firstSentence = (t) => (String(t).match(/^.*?\.(?=\s|$)/) || [String(t)])[0];
 
 function createPro({ vscode, context, prefix = 'tensorViewer', productName = 'NumPy Viewer', license, testKey }) {
   const emitter = new vscode.EventEmitter();
-  const opts = { vscode, context, sku: SKU, name: 'Zovo', commandPrefix: prefix };
+  const opts = { vscode, context, sku: SKU, name: 'Zovo', product: productName, proTools: Object.values(FEATURES).map(x => x.title), commandPrefix: prefix };
   if (testKey) { opts.publicKey = testKey; opts.allowTest = true; } // gate builds only
   const lic = license || createLicense(opts);
   const setContext = () => vscode.commands.executeCommand('setContext', `${prefix}.proLicensed`, lic.isPro(SKU));
@@ -50,8 +52,7 @@ function createPro({ vscode, context, prefix = 'tensorViewer', productName = 'Nu
   /** One modal, only after the user clicked a Pro feature with no free tries left. True when it got unlocked. */
   async function explain(f) {
     const x = FEATURES[f];
-    const tried = trialUsed(f) >= TRIAL_USES ? `You have used the ${TRIAL_USES} free tries of this feature on this computer.\n\n` : '';
-    return lic.requirePro(x.title, `${tried}${x.detail}\n\n${PRICE_LINE}\n\n${FREE_LINE}`);
+    return lic.requirePro(x.title, { detail: firstSentence(x.detail), triesUsed: trialUsed(f) >= TRIAL_USES ? TRIAL_USES : 0 });
   }
 
   /** Licensed or a free try left: the caller picks files first and calls useTrial() when the work starts. */

@@ -137,8 +137,8 @@ test('an unreadable tensor returns a sampleError, not a crash', async () => {
 test('support: package.json has the sponsor field, the two commands and the setting', () => {
   const pkg = require('../package.json');
   const support = require('../src/support');
-  assert.strictEqual(pkg.sponsor.url, 'https://github.com/sponsors/theluckystrike');
-  assert.strictEqual(pkg.sponsor.url, support.sponsorUrl());
+  assert.strictEqual(pkg.sponsor.url, 'https://github.com/sponsors/theluckystrike/sponsorships?tier_id=679878');
+  assert.strictEqual(pkg.sponsor.url, 'https://github.com/sponsors/theluckystrike/sponsorships?tier_id=679878');
   const ids = pkg.contributes.commands.map(c => c.command);
   assert.ok(ids.includes('tensorViewer.supportDeveloper') && ids.includes('tensorViewer.moreViewers'));
   const cfg = Array.isArray(pkg.contributes.configuration) ? pkg.contributes.configuration : [pkg.contributes.configuration];
@@ -156,8 +156,8 @@ test('support: the footer shows by default and tensorViewer.showSupportLinks=fal
       const f = fakePanel();
       await provider.resolveCustomEditor(provider.openCustomDocument(vscodeMock.Uri.file(path.join(FIX, 'tiny-llama-q8.gguf'))), f.panel);
       assert.strictEqual(/id="zovo-support"/.test(f.panel.webview.html), shown, JSON.stringify(settings));
-      assert.strictEqual(f.panel.webview.html.includes('command:tensorViewer.supportDeveloper'), shown);
-      assert.deepStrictEqual(f.panel.webview.options.enableCommandUris, ['tensorViewer.supportDeveloper', 'tensorViewer.moreViewers', 'workbench.action.openSettings']);
+      assert.strictEqual(f.panel.webview.html.includes('command:tensorViewer.getPro'), shown);
+      assert.deepStrictEqual(f.panel.webview.options.enableCommandUris, ['tensorViewer.supportDeveloper', 'tensorViewer.moreViewers', 'tensorViewer.getPro', 'tensorViewer.payWithPayPal', 'workbench.action.openSettings']);
       f.dispose();
     }
   } finally { vscodeMock.workspace.getConfiguration = orig; }

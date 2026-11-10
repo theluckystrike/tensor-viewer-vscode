@@ -271,10 +271,17 @@ test('3 free tries per feature, then one explanation with the ways to unlock; li
   assert.strictEqual(p.trialLeft('scan'), 3, 'tries are per feature');
   assert.strictEqual(await p.allowed('compare'), false);
   assert.strictEqual(asked.length, 1);
-  assert.match(asked[0].detail, /used the 3 free tries/);
-  assert.match(asked[0].detail, /USD 19 once/);
-  assert.match(asked[0].detail, /stays free/);
-  assert.ok(!/USD 15/.test(asked[0].detail));
+  // EXEC14: structured panel text ({ detail, triesUsed }); the shared module adds the price and "stays free".
+  const d = asked[0].detail;
+  assert.equal(d.triesUsed, 3);
+  assert.match(d.detail, /^Reads every value of two tensor files/);
+  const { createLicense } = require('../src/license');
+  const real = createLicense({ vscode: { window: {}, commands: { registerCommand: () => ({ dispose() {} }) } }, context: { subscriptions: [], secrets: { get: async () => undefined, onDidChange: () => ({ dispose() {} }) }, globalState: { get: () => undefined, update: async () => {} } }, sku: 'numpy-pro', name: 'Zovo', product: 'NumPy Viewer', proTools: ['Compare two checkpoints', 'Scan all tensors'] });
+  const text = real.panelDetail('Compare two checkpoints', d);
+  assert.match(text, /^You used the 3 free tries on this computer\./);
+  assert.match(text, /USD 19 once, for life\. It turns on Scan all tensors here/);
+  assert.match(text, /stays free\.$/);
+  assert.ok(!/USD 15|refund/i.test(text));
   assert.strictEqual(calls.status.length, 3);
   pro = true;
   assert.strictEqual(await p.allowed('compare'), true);
